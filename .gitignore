@@ -1,0 +1,82 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Backup files
+*.backup
+*.backup.*
+*.bak
+*.old
+
+# Logs
+*.log
+logs/
+
+# Cache
+cache/
+.cache/
+*.cache
+
+# Test artifacts
+test_results/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node (falls mal JS-Tools genutzt werden)
+node_modules/
+package-lock.json
+
+# Python (falls mal Python-Tools genutzt werden)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Temporary files
+tmp/
+temp/
+/tmp
+*.tmp
+
+# Local configuration
+local_config.sh
+.env
+.env.local
+
+# GitHub Token (NIEMALS committen!)
+*token*
+*TOKEN*
+github_pat_*
+
+# Build artifacts
+dist/
+build/
+release_package/

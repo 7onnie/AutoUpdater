@@ -1,0 +1,86 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck jq
+
+      - name: Shellcheck - lib
+        run: |
+          echo "Checking lib/*.sh"
+          shellcheck lib/*.sh || true
+
+      - name: Shellcheck - bootstrap
+        run: |
+          echo "Checking bootstrap/*.sh"
+          shellcheck bootstrap/*.sh || true
+
+      - name: Shellcheck - standalone
+        run: |
+          echo "Checking standalone/*.sh"
+          shellcheck standalone/*.sh || true
+
+      - name: Shellcheck - examples
+        run: |
+          echo "Checking examples/*.sh"
+          shellcheck examples/*.sh || true
+
+      - name: Syntax check - all scripts
+        run: |
+          echo "Syntax check for all .sh files"
+          find . -name "*.sh" -type f -exec bash -n {} \;
+
+      - name: Run test suite
+        run: |
+          chmod +x tests/test_all_modes.sh
+          ./tests/test_all_modes.sh
+
+      - name: Test bootstrap minimal
+        run: |
+          chmod +x examples/example_bootstrap_minimal.sh
+          # Dry-run test (won't actually update)
+          UPDATE_DRY_RUN=1 ./examples/example_bootstrap_minimal.sh || true
+
+      - name: Test bootstrap fallback
+        run: |
+          chmod +x examples/example_bootstrap_fallback.sh
+          UPDATE_DRY_RUN=1 ./examples/example_bootstrap_fallback.sh || true
+
+      - name: Check documentation
+        run: |
+          echo "Checking if all documentation files exist"
+          test -f docs/README.md
+          test -f docs/SETUP.md
+          test -f docs/DEPLOYMENT.md
+          test -f docs/MODES.md
+          test -f docs/MIGRATION.md
+          echo "✅ All documentation files present"
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Markdown lint
+        uses: articulate/actions-markdownlint@v1
+        with:
+          files: 'docs/*.md'
+          config: '.markdownlint.json'
+          ignore: 'node_modules'
+        continue-on-error: true

@@ -208,18 +208,26 @@ create_installer() {
     local backup_path="${original_script}.old"
     local installer_path="$original_script"
 
-    # 1. Backup erstellen (falls noch nicht vorhanden)
+    # 1. Bestimme Source für Header-Extraktion
+    local source_script="$original_script"
+
+    # Falls Backup existiert und original bereits ein Installer ist, nutze Backup
     if [[ -f "$backup_path" ]]; then
         log_warn "Backup existiert bereits: $backup_path"
+        # Prüfe ob original ein Installer ist
+        if grep -q "INSTALLER SCRIPT (AUTO-GENERATED)" "$original_script"; then
+            log_info "Original ist bereits ein Installer, nutze Backup als Quelle"
+            source_script="$backup_path"
+        fi
     else
         cp "$original_script" "$backup_path"
         log_success "Original gesichert: $backup_path"
     fi
 
     # 2. Header extrahieren (bis zur ersten Funktion oder Hauptlogik)
-    local header_end=$(grep -n "^[a-zA-Z_][a-zA-Z0-9_]*() {" "$original_script" | head -1 | cut -d: -f1)
+    local header_end=$(grep -n "^[a-zA-Z_][a-zA-Z0-9_]*() {" "$source_script" | head -1 | cut -d: -f1)
     if [[ -z "$header_end" ]]; then
-        header_end=$(grep -n "^# START\|^# Main\|^main()" "$original_script" | head -1 | cut -d: -f1)
+        header_end=$(grep -n "^# START\|^# Main\|^main()" "$source_script" | head -1 | cut -d: -f1)
     fi
     if [[ -z "$header_end" ]]; then
         header_end=30  # Fallback
@@ -243,7 +251,7 @@ create_installer() {
 INSTALLER_HEADER
 
     # 4. Original-Header hinzufügen (ohne Shebang, ohne alte Version)
-    sed -n '2,'"$header_end"'p' "$original_script" | grep -v "^SCRIPT_VERSION=" >> "$installer_path"
+    sed -n '2,'"$header_end"'p' "$source_script" | grep -v "^SCRIPT_VERSION=" >> "$installer_path"
 
     # 5. Auto-Update Konfiguration
     # Prüfe ob DEP-Ordner vorhanden

@@ -13,7 +13,7 @@
 
 auto_update() {
     # Konfiguration
-    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/master/lib/auto_update_engine.sh"
+    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/lib/auto_update_engine.sh"
     local CACHE_DIR="/tmp/auto_update_cache"
     local CACHE_FILE="$CACHE_DIR/engine.sh"
     local CACHE_LIFETIME=1440  # 24 Stunden in Minuten

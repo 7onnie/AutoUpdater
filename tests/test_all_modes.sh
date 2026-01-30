@@ -5,7 +5,8 @@
 # Testet alle Update-Modi und Funktionen
 # ==========================================
 
-set -e
+# Note: set -e is intentionally NOT used here to allow tests to fail gracefully
+# and report failures rather than exit immediately
 
 # Test-Konfiguration
 TEST_DIR="/tmp/auto_update_tests"

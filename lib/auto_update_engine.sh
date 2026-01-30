@@ -367,9 +367,16 @@ _update_github_release() {
     local temp_download="/tmp/auto_update_download_$$"
 
     # Für API-URLs (private Repos): Setze Accept Header für Binary Download
-    local download_headers=("${curl_headers[@]}")
+    local download_headers=()
     if [[ "$asset_url" == *"api.github.com"* ]]; then
+        # Für API-URLs: Nur Authorization + octet-stream Accept
+        if [[ -n "$github_token" ]]; then
+            download_headers+=("-H" "Authorization: Bearer $github_token")
+        fi
         download_headers+=("-H" "Accept: application/octet-stream")
+    else
+        # Für normale URLs: Alle Headers
+        download_headers=("${curl_headers[@]}")
     fi
 
     if ! curl -sS --max-time "$UPDATE_TIMEOUT" -L "${download_headers[@]}" "$asset_url" -o "$temp_download"; then
@@ -386,17 +393,34 @@ _update_github_release() {
         mkdir -p "$extract_dir"
 
         if [[ "$asset_name" == *.tar.gz ]]; then
-            tar -xzf "$temp_download" -C "$extract_dir" 2>/dev/null
+            # Entpacken mit Fehler-Logging
+            if ! tar -xzf "$temp_download" -C "$extract_dir" 2>&1; then
+                _log ERROR "Fehler beim Entpacken des Archives"
+                rm -rf "$temp_download" "$extract_dir"
+                return 1
+            fi
+            _log DEBUG "Extracted to: $extract_dir"
+            _log DEBUG "Extract dir contents: $(ls -la "$extract_dir" 2>/dev/null | head -20)"
         elif [[ "$asset_name" == *.zip ]]; then
-            unzip -q "$temp_download" -d "$extract_dir" 2>/dev/null
+            if ! unzip -q "$temp_download" -d "$extract_dir" 2>&1; then
+                _log ERROR "Fehler beim Entpacken des Archives"
+                rm -rf "$temp_download" "$extract_dir"
+                return 1
+            fi
         fi
 
         # Suche nach Script in extrahiertem Inhalt (.sh oder .command)
         local script_file
-        script_file=$(find "$extract_dir" \( -name "*.sh" -o -name "*.command" \) -type f | head -n1)
+        script_file=$(find "$extract_dir" -type f -name "*.sh" | head -n1)
+        _log DEBUG "Found .sh files: $(find "$extract_dir" -type f -name '*.sh')"
+        if [[ -z "$script_file" ]]; then
+            script_file=$(find "$extract_dir" -type f -name "*.command" | head -n1)
+            _log DEBUG "Found .command files: $(find "$extract_dir" -type f -name '*.command')"
+        fi
 
         if [[ -z "$script_file" ]]; then
             _log ERROR "Kein Shell-Script im Archive gefunden (.sh oder .command)"
+            _log DEBUG "All files in extract_dir: $(find "$extract_dir" -type f)"
             rm -rf "$temp_download" "$extract_dir"
             return 1
         fi

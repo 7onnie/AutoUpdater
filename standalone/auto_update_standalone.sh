@@ -316,9 +316,14 @@ _update_github_release() {
     local temp_download="/tmp/auto_update_download_$$"
 
     # Für API-URLs (private Repos): Setze Accept Header für Binary Download
-    local download_headers=("${curl_headers[@]}")
+    local download_headers=()
     if [[ "$asset_url" == *"api.github.com"* ]]; then
+        if [[ -n "$github_token" ]]; then
+            download_headers+=("-H" "Authorization: Bearer $github_token")
+        fi
         download_headers+=("-H" "Accept: application/octet-stream")
+    else
+        download_headers=("${curl_headers[@]}")
     fi
 
     if ! curl -sS --max-time "$UPDATE_TIMEOUT" -L "${download_headers[@]}" "$asset_url" -o "$temp_download"; then
@@ -340,7 +345,10 @@ _update_github_release() {
         fi
 
         local script_file
-        script_file=$(find "$extract_dir" \( -name "*.sh" -o -name "*.command" \) -type f | head -n1)
+        script_file=$(find "$extract_dir" -type f -name "*.sh" | head -n1)
+        if [[ -z "$script_file" ]]; then
+            script_file=$(find "$extract_dir" -type f -name "*.command" | head -n1)
+        fi
 
         if [[ -z "$script_file" ]]; then
             _log ERROR "Kein Shell-Script im Archive gefunden (.sh oder .command)"

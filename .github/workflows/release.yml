@@ -47,7 +47,7 @@ jobs:
 
           \`\`\`bash
           # Bootstrap minimal
-          curl -sS https://raw.githubusercontent.com/7onnie/AutoUpdater/master/bootstrap/bootstrap_minimal.sh
+          curl -sS https://raw.githubusercontent.com/7onnie/AutoUpdater/main/bootstrap/bootstrap_minimal.sh
 
           # Oder als Submodule
           git submodule add https://github.com/7onnie/AutoUpdater.git
@@ -55,11 +55,11 @@ jobs:
 
           ## Documentation
 
-          - [Setup Guide](https://github.com/7onnie/AutoUpdater/blob/master/docs/SETUP.md)
-          - [Deployment Guide](https://github.com/7onnie/AutoUpdater/blob/master/docs/DEPLOYMENT.md)
-          - [Modes Comparison](https://github.com/7onnie/AutoUpdater/blob/master/docs/MODES.md)
-          - [Migration Guide](https://github.com/7onnie/AutoUpdater/blob/master/docs/MIGRATION.md)
-          - [Script Migration Tool](https://github.com/7onnie/AutoUpdater/blob/master/docs/SCRIPT_MIGRATION.md)
+          - [Setup Guide](https://github.com/7onnie/AutoUpdater/blob/main/docs/SETUP.md)
+          - [Deployment Guide](https://github.com/7onnie/AutoUpdater/blob/main/docs/DEPLOYMENT.md)
+          - [Modes Comparison](https://github.com/7onnie/AutoUpdater/blob/main/docs/MODES.md)
+          - [Migration Guide](https://github.com/7onnie/AutoUpdater/blob/main/docs/MIGRATION.md)
+          - [Script Migration Tool](https://github.com/7onnie/AutoUpdater/blob/main/docs/SCRIPT_MIGRATION.md)
           EOF
 
       - name: Create GitHub Release

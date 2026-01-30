@@ -62,10 +62,11 @@ VERWENDUNG:
 OPTIONS:
     --script PATH           Pfad zum Script im Mono-Repo (erforderlich)
     --repo-name NAME        GitHub Repository-Name (erforderlich)
-    --github-token TOKEN    GitHub Token (oder \$GITHUB_TOKEN)
     --local-path PATH       Lokaler Clone-Pfad (default: ~/script-repos)
     --private               Private Repository erstellen (default)
     --public                Public Repository erstellen
+    --installer-mode        Erstelle zusätzlich Installer-Script für Share
+    --share-token TOKEN     GitHub Token für Installer (nur mit --installer-mode)
     --help                  Diese Hilfe anzeigen
 
 BEISPIEL:
@@ -79,7 +80,7 @@ BEISPIEL:
     $0
 
 VORAUSSETZUNGEN:
-    - GitHub Token in \$GITHUB_TOKEN
+    - GitHub authentifiziert (gh auth login)
     - gh CLI installiert (brew install gh)
     - Script muss vorbereitet sein:
       * SCRIPT_VERSION="x.y.z" im Header
@@ -166,22 +167,17 @@ extract_version() {
     grep '^SCRIPT_VERSION=' "$script_path" | head -1 | cut -d'"' -f2 | tr -d "'"
 }
 
-validate_github_token() {
-    if [[ -z "$GITHUB_TOKEN" ]]; then
-        log_error "GitHub Token nicht gesetzt"
-        log_info "Setze: export GITHUB_TOKEN=\"github_pat_XXX\""
-        log_info "Oder nutze: --github-token TOKEN"
-        exit 1
-    fi
+validate_github_auth() {
+    log_info "Prüfe GitHub Authentifizierung..."
 
-    # Test GitHub Auth
+    # Prüfe gh auth status
     if ! gh auth status &>/dev/null; then
         log_error "GitHub Authentifizierung fehlgeschlagen"
-        log_info "Führe aus: gh auth login"
+        log_info "Bitte authentifiziere dich mit: gh auth login"
         exit 1
     fi
 
-    log_success "GitHub Token valid"
+    log_success "GitHub Authentifizierung erfolgreich"
 }
 
 check_repo_exists() {
@@ -479,7 +475,7 @@ show_status_report() {
     echo "1. Token für Internal Share setzen:"
     echo "   cd $local_path/$repo_name"
     echo "   vim $script_name"
-    echo "   # Ändere: UPDATE_GITHUB_TOKEN=\"your_token_here\""
+    echo "   # Ändere: GITHUB_TOKEN=\"your_token_here\""
     echo "   cp $script_name /Volumes/ZS_Share/Scripts/$script_name"
     echo ""
     echo "2. Öffne in SublimeMerge:"
@@ -515,10 +511,6 @@ main() {
                 REPO_NAME="$2"
                 shift 2
                 ;;
-            --github-token)
-                GITHUB_TOKEN="$2"
-                shift 2
-                ;;
             --local-path)
                 LOCAL_PATH="$2"
                 shift 2
@@ -544,7 +536,6 @@ main() {
     done
 
     # Defaults setzen
-    GITHUB_TOKEN="${GITHUB_TOKEN:-${GITHUB_TOKEN}}"
     LOCAL_PATH="${LOCAL_PATH:-$DEFAULT_LOCAL_PATH}"
     REPO_VISIBILITY="${REPO_VISIBILITY:-private}"
 
@@ -565,8 +556,8 @@ main() {
         validate_script "$SCRIPT_PATH"
     fi
 
-    # Validate GitHub Token
-    validate_github_token
+    # Validate GitHub Auth
+    validate_github_auth
 
     # Check if repo exists
     check_repo_exists "$REPO_NAME"

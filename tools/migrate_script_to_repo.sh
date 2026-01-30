@@ -359,12 +359,39 @@ interactive_mode() {
     LOCAL_PATH="${LOCAL_PATH:-$DEFAULT_LOCAL_PATH}"
     LOCAL_PATH="${LOCAL_PATH/#\~/$HOME}"  # Expand ~
 
+    # Share Token (nur wenn Installer-Mode aktiv)
+    if [[ "$INSTALLER_MODE" == "1" ]]; then
+        echo ""
+        echo "ℹ️  Installer-Mode ist aktiviert (Script wird als Downloader konfiguriert)"
+        echo "ℹ️  Für Private Repos: Gib deinen GitHub Token ein (ghp_...)"
+        echo "ℹ️  Dieser Token wird im Installer auf dem Share HARDCODED"
+        read -p "GitHub Token für Share-Version [leer lassen für Public Repo]: " SHARE_TOKEN
+
+        if [[ -z "$SHARE_TOKEN" ]] && [[ "$REPO_VISIBILITY" == "private" ]]; then
+            log_warn "Private Repo ohne Token: Installer wird nicht funktionieren!"
+            read -p "Trotzdem fortfahren? [y/N]: " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_info "Abgebrochen"
+                exit 0
+            fi
+        fi
+    fi
+
     echo ""
     echo "Zusammenfassung:"
     echo "  Script:     $SCRIPT_PATH"
     echo "  Repository: $GITHUB_USER/$REPO_NAME"
     echo "  Visibility: $REPO_VISIBILITY"
     echo "  Local:      $LOCAL_PATH/$REPO_NAME"
+    if [[ "$INSTALLER_MODE" == "1" ]]; then
+        echo "  Mode:       Installer (SCRIPT_VERSION=0.0.0)"
+        if [[ -n "$SHARE_TOKEN" ]]; then
+            echo "  Share-Token: ✅ Gesetzt (${#SHARE_TOKEN} Zeichen)"
+        else
+            echo "  Share-Token: ⚠️  Nicht gesetzt (nur für Public Repos OK)"
+        fi
+    fi
     echo ""
 
     read -p "Fortfahren? [Y/n]: " -n 1 -r

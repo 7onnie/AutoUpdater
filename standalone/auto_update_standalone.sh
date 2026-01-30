@@ -318,10 +318,10 @@ _update_github_release() {
         fi
 
         local script_file
-        script_file=$(find "$extract_dir" -name "*.sh" -type f | head -n1)
+        script_file=$(find "$extract_dir" \( -name "*.sh" -o -name "*.command" \) -type f | head -n1)
 
         if [[ -z "$script_file" ]]; then
-            _log ERROR "Kein Shell-Script im Archive gefunden"
+            _log ERROR "Kein Shell-Script im Archive gefunden (.sh oder .command)"
             rm -rf "$temp_download" "$extract_dir"
             return 1
         fi

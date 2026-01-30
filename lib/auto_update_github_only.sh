@@ -189,9 +189,9 @@ auto_update_github() {
         fi
 
         local script_file
-        script_file=$(find "$extract_dir" -name "*.sh" -type f | head -n1)
+        script_file=$(find "$extract_dir" \( -name "*.sh" -o -name "*.command" \) -type f | head -n1)
 
-        [[ -z "$script_file" ]] && _log ERROR "Kein Shell-Script im Archive" && rm -rf "$temp_download" "$extract_dir" && return 1
+        [[ -z "$script_file" ]] && _log ERROR "Kein Shell-Script im Archive (.sh oder .command)" && rm -rf "$temp_download" "$extract_dir" && return 1
 
         _self_replace "$0" "$(cat "$script_file")" || { rm -rf "$temp_download" "$extract_dir"; return 1; }
 

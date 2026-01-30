@@ -246,6 +246,16 @@ INSTALLER_HEADER
     sed -n '2,'"$header_end"'p' "$original_script" | grep -v "^SCRIPT_VERSION=" >> "$installer_path"
 
     # 5. Auto-Update Konfiguration
+    # Prüfe ob DEP-Ordner vorhanden
+    local script_basename="${script_name%.*}"
+    local archive_config=""
+
+    if [[ -d "$script_dir/DEP" ]]; then
+        log_info "DEP-Ordner erkannt, aktiviere Archive-Modus im Installer..."
+        archive_config="UPDATE_ASSET_NAME=\"${script_basename}.tar.gz\"
+UPDATE_IS_ARCHIVE=1"
+    fi
+
     cat >> "$installer_path" <<INSTALLER_CONFIG
 
 # ==========================================
@@ -256,6 +266,7 @@ UPDATE_MODE="github_release"
 UPDATE_GITHUB_USER="$GITHUB_USER"
 UPDATE_GITHUB_REPO="$repo_name"
 UPDATE_RELEASE_TAG="latest"
+$archive_config
 GITHUB_TOKEN="$share_token"  # Token für Private-Repo-Zugriff
 
 # ==========================================
@@ -405,9 +416,35 @@ setup_local_repo() {
 
     # Kopiere Script
     local script_name=$(basename "$script_path")
+    local script_basename="${script_name%.*}"
     cp "$script_path" "$repo_dir/$script_name"
 
     log_success "Script kopiert nach: $repo_dir/$script_name"
+
+    # Prüfe ob DEP-Ordner vorhanden ist
+    local script_dir=$(dirname "$script_path")
+    local has_dep=0
+
+    if [[ -d "$script_dir/DEP" ]]; then
+        log_info "DEP-Ordner gefunden, kopiere Dependencies..."
+        cp -r "$script_dir/DEP" "$repo_dir/"
+        has_dep=1
+        log_success "DEP-Ordner kopiert"
+
+        # Prüfe ob Script bereits Archive-Konfiguration hat
+        if ! grep -q "^UPDATE_ASSET_NAME=" "$repo_dir/$script_name"; then
+            log_info "Füge Archive-Konfiguration zum Bootstrap hinzu..."
+
+            # Füge Archive-Konfiguration nach UPDATE_RELEASE_TAG ein
+            sed -i.bak '/^UPDATE_RELEASE_TAG=/a\
+UPDATE_ASSET_NAME="'"$script_basename"'.tar.gz"\
+UPDATE_IS_ARCHIVE=1
+' "$repo_dir/$script_name"
+            rm -f "$repo_dir/$script_name.bak"
+
+            log_success "Archive-Konfiguration hinzugefügt"
+        fi
+    fi
 
     # README erstellen
     cat > "$repo_dir/README.md" <<EOF
@@ -521,7 +558,8 @@ create_initial_release() {
     log_info "Erstelle initialen Release: v$version"
 
     local repo_dir="$local_path/$repo_name"
-    local script_name=$(ls "$repo_dir"/*.sh | head -1 | xargs basename)
+    local script_name=$(ls "$repo_dir"/*.sh "$repo_dir"/*.command 2>/dev/null | head -1 | xargs basename)
+    local script_basename="${script_name%.*}"
 
     cd "$repo_dir"
 
@@ -529,7 +567,32 @@ create_initial_release() {
     git tag -a "v$version" -m "Release version $version"
     git push origin "v$version"
 
-    # Erstelle Release
+    # Prüfe ob DEP-Ordner vorhanden
+    local has_dep=0
+    local archive_name=""
+    local assets="$script_name"
+
+    if [[ -d "$repo_dir/DEP" ]]; then
+        log_info "DEP-Ordner gefunden, erstelle Archive..."
+        has_dep=1
+        archive_name="${script_basename}.tar.gz"
+
+        # Erstelle temporären Build-Ordner
+        mkdir -p build
+        cp "$script_name" build/
+        cp -r DEP build/
+
+        # Erstelle tar.gz Archive
+        tar -czf "$archive_name" -C build .
+        rm -rf build
+
+        log_success "Archive erstellt: $archive_name"
+
+        # Beide Assets hochladen
+        assets="$archive_name $script_name"
+    fi
+
+    # Erstelle Release Notes
     cat > /tmp/release_notes.md <<EOF
 # Initial Release v$version
 
@@ -537,11 +600,43 @@ Auto-migrated from Scripte Mono-Repo.
 
 ## Installation
 
+EOF
+
+    if [[ $has_dep -eq 1 ]]; then
+        cat >> /tmp/release_notes.md <<EOF
+### With Dependencies (Recommended)
+
+\`\`\`bash
+# Download and extract archive with DEP folder
+curl -L -o $archive_name https://github.com/$GITHUB_USER/$repo_name/releases/download/v$version/$archive_name
+tar -xzf $archive_name
+chmod +x $script_name
+
+# Run
+./$script_name
+\`\`\`
+
+### Script Only (without dependencies)
+
 \`\`\`bash
 curl -L -o $script_name https://github.com/$GITHUB_USER/$repo_name/releases/download/v$version/$script_name
 chmod +x $script_name
 \`\`\`
 
+**Note:** This release includes a DEP folder with dependencies. For full functionality, use the archive download.
+
+EOF
+    else
+        cat >> /tmp/release_notes.md <<EOF
+\`\`\`bash
+curl -L -o $script_name https://github.com/$GITHUB_USER/$repo_name/releases/download/v$version/$script_name
+chmod +x $script_name
+\`\`\`
+
+EOF
+    fi
+
+    cat >> /tmp/release_notes.md <<EOF
 ## Features
 
 - AutoUpdater integrated
@@ -555,10 +650,11 @@ chmod +x $script_name
 \`\`\`
 EOF
 
+    # Erstelle Release mit Assets
     if gh release create "v$version" \
-        --title "$script_name v$version" \
+        --title "$script_basename v$version" \
         --notes-file /tmp/release_notes.md \
-        "$repo_dir/$script_name"; then
+        $assets; then
         log_success "Release v$version erstellt"
         rm -f /tmp/release_notes.md
         return 0

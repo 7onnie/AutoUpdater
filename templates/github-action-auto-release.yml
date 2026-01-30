@@ -4,7 +4,12 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '*.sh'  # Nur bei Script-Änderungen
+      - '*.sh'
+      - '*.command'
+      - 'DEP/**'  # Auch bei DEP-Ordner Änderungen
+
+permissions:
+  contents: write  # Erforderlich für Tag-Erstellung und Release
 
 jobs:
   check-and-release:
@@ -19,13 +24,18 @@ jobs:
       - name: Find shell script
         id: find_script
         run: |
-          SCRIPT=$(ls *.sh | head -1)
+          SCRIPT=$(ls *.sh *.command 2>/dev/null | head -1)
           if [ -z "$SCRIPT" ]; then
-            echo "❌ No shell script found"
+            echo "❌ No shell script found (.sh or .command)"
             exit 1
           fi
+
+          # Extract basename without extension
+          BASENAME="${SCRIPT%.*}"
+
           echo "script=$SCRIPT" >> $GITHUB_OUTPUT
-          echo "Found script: $SCRIPT"
+          echo "basename=$BASENAME" >> $GITHUB_OUTPUT
+          echo "Found script: $SCRIPT (basename: $BASENAME)"
 
       - name: Extract current version
         id: current_version
@@ -99,16 +109,51 @@ jobs:
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Prepare Release Assets
+        if: steps.check.outputs.changed == 'true'
+        id: assets
+        run: |
+          SCRIPT="${{ steps.find_script.outputs.script }}"
+          BASENAME="${{ steps.find_script.outputs.basename }}"
+          VERSION="${{ steps.current_version.outputs.version }}"
+
+          # Prüfe ob DEP-Ordner existiert
+          if [ -d "DEP" ]; then
+            echo "📦 DEP-Ordner gefunden - erstelle Archive"
+
+            # Erstelle temporären Build-Ordner
+            mkdir -p build
+            cp "$SCRIPT" "build/"
+            cp -r DEP "build/"
+
+            # Erstelle tar.gz Archive
+            ARCHIVE_NAME="${BASENAME}.tar.gz"
+            tar -czf "$ARCHIVE_NAME" -C build .
+
+            echo "has_dep=true" >> $GITHUB_OUTPUT
+            echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+            echo "✅ Archive erstellt: $ARCHIVE_NAME"
+
+            # Liste Archive-Inhalt
+            echo "Archive-Inhalt:"
+            tar -tzf "$ARCHIVE_NAME"
+          else
+            echo "ℹ️  Kein DEP-Ordner - nur Script wird released"
+            echo "has_dep=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release Notes
         if: steps.check.outputs.changed == 'true'
         run: |
           VERSION="${{ steps.current_version.outputs.version }}"
           SCRIPT="${{ steps.find_script.outputs.script }}"
-          SCRIPT_NAME="${SCRIPT%.sh}"
+          BASENAME="${{ steps.find_script.outputs.basename }}"
           REPO="${{ github.repository }}"
+          HAS_DEP="${{ steps.assets.outputs.has_dep }}"
+          ARCHIVE_NAME="${{ steps.assets.outputs.archive_name }}"
 
           cat > release_notes.md <<EOF
-          # $SCRIPT_NAME v$VERSION
+          # $BASENAME v$VERSION
 
           ## Changes
 
@@ -116,6 +161,36 @@ jobs:
 
           ## Installation
 
+          EOF
+
+          # Erweiterte Installation wenn DEP-Ordner vorhanden
+          if [ "$HAS_DEP" = "true" ]; then
+            cat >> release_notes.md <<EOF
+          ### With Dependencies (Recommended)
+
+          \`\`\`bash
+          # Download and extract archive with DEP folder
+          curl -L -o $ARCHIVE_NAME https://github.com/$REPO/releases/download/v$VERSION/$ARCHIVE_NAME
+          tar -xzf $ARCHIVE_NAME
+          chmod +x $SCRIPT
+
+          # Run
+          ./$SCRIPT
+          \`\`\`
+
+          ### Script Only (without dependencies)
+
+          \`\`\`bash
+          # Download script only
+          curl -L -o $SCRIPT https://github.com/$REPO/releases/download/v$VERSION/$SCRIPT
+          chmod +x $SCRIPT
+          \`\`\`
+
+          **Note:** This release includes a DEP folder with dependencies. For full functionality, use the archive download.
+
+          EOF
+          else
+            cat >> release_notes.md <<EOF
           \`\`\`bash
           # Download latest version
           curl -L -o $SCRIPT https://github.com/$REPO/releases/download/v$VERSION/$SCRIPT
@@ -126,6 +201,10 @@ jobs:
           chmod +x $SCRIPT
           \`\`\`
 
+          EOF
+          fi
+
+          cat >> release_notes.md <<EOF
           ## Auto-Update
 
           This script includes AutoUpdater. Run it to automatically update to the latest version.
@@ -146,12 +225,28 @@ jobs:
         run: |
           VERSION="${{ steps.current_version.outputs.version }}"
           SCRIPT="${{ steps.find_script.outputs.script }}"
-          SCRIPT_NAME="${SCRIPT%.sh}"
+          BASENAME="${{ steps.find_script.outputs.basename }}"
+          HAS_DEP="${{ steps.assets.outputs.has_dep }}"
+          ARCHIVE_NAME="${{ steps.assets.outputs.archive_name }}"
 
-          # Create release
-          gh release create "v$VERSION" \
-            --title "$SCRIPT_NAME v$VERSION" \
-            --notes-file release_notes.md \
-            "$SCRIPT"
+          # Bestimme welche Assets hochgeladen werden
+          if [ "$HAS_DEP" = "true" ]; then
+            # Mit DEP: Archive (primär) + Script (sekundär)
+            echo "📦 Uploading archive and script..."
+            gh release create "v$VERSION" \
+              --title "$BASENAME v$VERSION" \
+              --notes-file release_notes.md \
+              "$ARCHIVE_NAME" \
+              "$SCRIPT"
 
-          echo "✅ Release v$VERSION created successfully!"
+            echo "✅ Release v$VERSION created with archive ($ARCHIVE_NAME) and script ($SCRIPT)"
+          else
+            # Ohne DEP: Nur Script
+            echo "📄 Uploading script only..."
+            gh release create "v$VERSION" \
+              --title "$BASENAME v$VERSION" \
+              --notes-file release_notes.md \
+              "$SCRIPT"
+
+            echo "✅ Release v$VERSION created with script ($SCRIPT)"
+          fi

@@ -42,7 +42,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 
 # Bootstrap (30 Zeilen)
 auto_update() {
-    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/master/lib/auto_update_engine.sh"
+    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/lib/auto_update_engine.sh"
     local CACHE_FILE="/tmp/auto_update_cache/engine.sh"
 
     mkdir -p "$(dirname "$CACHE_FILE")"

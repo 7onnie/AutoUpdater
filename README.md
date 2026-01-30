@@ -40,7 +40,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"
 
 # Bootstrap
 auto_update() {
-    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/master/lib/auto_update_engine.sh"
+    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/lib/auto_update_engine.sh"
     local CACHE_FILE="/tmp/auto_update_cache/engine.sh"
 
     mkdir -p "$(dirname "$CACHE_FILE")"
@@ -82,7 +82,7 @@ echo "Script läuft (Version: $SCRIPT_VERSION)"
 Kopiere `bootstrap/bootstrap_minimal.sh` in dein Script:
 
 ```bash
-curl -sS https://raw.githubusercontent.com/7onnie/AutoUpdater/master/bootstrap/bootstrap_minimal.sh
+curl -sS https://raw.githubusercontent.com/7onnie/AutoUpdater/main/bootstrap/bootstrap_minimal.sh
 ```
 
 ### Option 2: Standalone
@@ -90,7 +90,7 @@ curl -sS https://raw.githubusercontent.com/7onnie/AutoUpdater/master/bootstrap/b
 Kopiere `standalone/auto_update_standalone.sh` (komplett eingebettet, 400 Zeilen):
 
 ```bash
-curl -sS https://raw.githubusercontent.com/7onnie/AutoUpdater/master/standalone/auto_update_standalone.sh
+curl -sS https://raw.githubusercontent.com/7onnie/AutoUpdater/main/standalone/auto_update_standalone.sh
 ```
 
 ### Option 3: Als Submodule

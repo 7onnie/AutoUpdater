@@ -134,7 +134,7 @@ gh repo create AutoUpdater --public --source=. --remote=origin --push
 Prüfe dass Bootstrap-URL erreichbar ist:
 
 ```bash
-curl -sI https://raw.githubusercontent.com/7onnie/AutoUpdater/master/lib/auto_update_engine.sh
+curl -sI https://raw.githubusercontent.com/7onnie/AutoUpdater/main/lib/auto_update_engine.sh
 
 # Sollte "200 OK" zurückgeben
 ```
@@ -178,7 +178,7 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-}"  # Aus Umgebungsvariable
 # ==========================================
 
 auto_update() {
-    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/master/lib/auto_update_engine.sh"
+    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/lib/auto_update_engine.sh"
     local CACHE_DIR="/tmp/auto_update_cache"
     local CACHE_FILE="$CACHE_DIR/engine.sh"
     local CACHE_LIFETIME=1440

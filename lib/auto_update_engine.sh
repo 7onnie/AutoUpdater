@@ -295,18 +295,36 @@ _update_github_release() {
 
         if [[ -n "$asset_name" ]]; then
             # Suche nach spezifischem Asset
-            asset_url=$(echo "$release_info" | python3 -c "import sys, json; data=json.load(sys.stdin); assets=[a for a in data.get('assets', []) if a['name']=='${asset_name}']; print(assets[0]['browser_download_url'] if assets else '')" 2>/dev/null)
+            # Für private Repos: Nutze API-URL statt browser_download_url
+            if [[ -n "$github_token" ]]; then
+                asset_url=$(echo "$release_info" | python3 -c "import sys, json; data=json.load(sys.stdin); assets=[a for a in data.get('assets', []) if a['name']=='${asset_name}']; print(assets[0]['url'] if assets else '')" 2>/dev/null)
+            else
+                asset_url=$(echo "$release_info" | python3 -c "import sys, json; data=json.load(sys.stdin); assets=[a for a in data.get('assets', []) if a['name']=='${asset_name}']; print(assets[0]['browser_download_url'] if assets else '')" 2>/dev/null)
+            fi
         else
             # Nimm erstes Asset
-            asset_url=$(echo "$release_info" | python3 -c "import sys, json; data=json.load(sys.stdin); assets=data.get('assets', []); print(assets[0]['browser_download_url'] if assets else '')" 2>/dev/null)
+            if [[ -n "$github_token" ]]; then
+                asset_url=$(echo "$release_info" | python3 -c "import sys, json; data=json.load(sys.stdin); assets=data.get('assets', []); print(assets[0]['url'] if assets else '')" 2>/dev/null)
+            else
+                asset_url=$(echo "$release_info" | python3 -c "import sys, json; data=json.load(sys.stdin); assets=data.get('assets', []); print(assets[0]['browser_download_url'] if assets else '')" 2>/dev/null)
+            fi
         fi
     elif command -v jq &> /dev/null; then
         remote_version=$(echo "$release_info" | jq -r '.tag_name // empty')
 
         if [[ -n "$asset_name" ]]; then
-            asset_url=$(echo "$release_info" | jq -r ".assets[] | select(.name==\"${asset_name}\") | .browser_download_url // empty")
+            # Für private Repos: Nutze API-URL statt browser_download_url
+            if [[ -n "$github_token" ]]; then
+                asset_url=$(echo "$release_info" | jq -r ".assets[] | select(.name==\"${asset_name}\") | .url // empty")
+            else
+                asset_url=$(echo "$release_info" | jq -r ".assets[] | select(.name==\"${asset_name}\") | .browser_download_url // empty")
+            fi
         else
-            asset_url=$(echo "$release_info" | jq -r '.assets[0].browser_download_url // empty')
+            if [[ -n "$github_token" ]]; then
+                asset_url=$(echo "$release_info" | jq -r '.assets[0].url // empty')
+            else
+                asset_url=$(echo "$release_info" | jq -r '.assets[0].browser_download_url // empty')
+            fi
         fi
     else
         _log ERROR "Weder python3 noch jq gefunden - kann Release-Info nicht parsen"
@@ -348,7 +366,13 @@ _update_github_release() {
 
     local temp_download="/tmp/auto_update_download_$$"
 
-    if ! curl -sS --max-time "$UPDATE_TIMEOUT" -L "${curl_headers[@]}" "$asset_url" -o "$temp_download"; then
+    # Für API-URLs (private Repos): Setze Accept Header für Binary Download
+    local download_headers=("${curl_headers[@]}")
+    if [[ "$asset_url" == *"api.github.com"* ]]; then
+        download_headers+=("-H" "Accept: application/octet-stream")
+    fi
+
+    if ! curl -sS --max-time "$UPDATE_TIMEOUT" -L "${download_headers[@]}" "$asset_url" -o "$temp_download"; then
         _log ERROR "Download fehlgeschlagen"
         rm -f "$temp_download"
         return 1

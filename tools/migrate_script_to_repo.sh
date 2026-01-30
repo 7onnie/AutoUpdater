@@ -191,6 +191,123 @@ check_repo_exists() {
 }
 
 # ==========================================
+# INSTALLER-MODE FUNKTIONEN
+# ==========================================
+
+create_installer() {
+    local original_script="$1"
+    local repo_name="$2"
+    local share_token="$3"
+    local version="$4"
+
+    log_info "Erstelle Installer-Script..."
+
+    local script_dir=$(dirname "$original_script")
+    local script_name=$(basename "$original_script")
+    local backup_path="${original_script}.old"
+    local installer_path="$original_script"
+
+    # 1. Backup erstellen (falls noch nicht vorhanden)
+    if [[ -f "$backup_path" ]]; then
+        log_warn "Backup existiert bereits: $backup_path"
+    else
+        cp "$original_script" "$backup_path"
+        log_success "Original gesichert: $backup_path"
+    fi
+
+    # 2. Header extrahieren (bis zur ersten Funktion oder Hauptlogik)
+    local header_end=$(grep -n "^[a-zA-Z_][a-zA-Z0-9_]*() {" "$original_script" | head -1 | cut -d: -f1)
+    if [[ -z "$header_end" ]]; then
+        header_end=$(grep -n "^# START\|^# Main\|^main()" "$original_script" | head -1 | cut -d: -f1)
+    fi
+    if [[ -z "$header_end" ]]; then
+        header_end=30  # Fallback
+    fi
+
+    # 3. Installer erstellen
+    cat > "$installer_path" <<'INSTALLER_HEADER'
+#!/bin/bash
+
+# ==========================================
+# INSTALLER SCRIPT (AUTO-GENERATED)
+# ==========================================
+# Dieses Script lädt automatisch die neueste Version
+# von GitHub herunter und führt sie aus.
+#
+# WICHTIG: Dies ist nur der Installer/Downloader!
+# Das eigentliche Script wird bei jedem Aufruf
+# von GitHub heruntergeladen.
+# ==========================================
+
+INSTALLER_HEADER
+
+    # 4. Original-Header hinzufügen (ohne Shebang, ohne alte Version)
+    sed -n '2,'"$header_end"'p' "$original_script" | grep -v "^SCRIPT_VERSION=" >> "$installer_path"
+
+    # 5. Auto-Update Konfiguration
+    cat >> "$installer_path" <<INSTALLER_CONFIG
+
+# ==========================================
+# AUTO-UPDATE KONFIGURATION (INSTALLER)
+# ==========================================
+SCRIPT_VERSION="0.0.0"  # Installer updated IMMER
+UPDATE_MODE="github_release"
+UPDATE_GITHUB_USER="$GITHUB_USER"
+UPDATE_GITHUB_REPO="$repo_name"
+UPDATE_RELEASE_TAG="latest"
+GITHUB_TOKEN="$share_token"  # Token für Private-Repo-Zugriff
+
+# ==========================================
+# AUTO-UPDATE BOOTSTRAP
+# ==========================================
+
+auto_update() {
+    local ENGINE_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/lib/auto_update_engine.sh"
+    local CACHE_DIR="/tmp/auto_update_cache"
+    local CACHE_FILE="\$CACHE_DIR/engine.sh"
+    local CACHE_LIFETIME=1440
+
+    mkdir -p "\$CACHE_DIR" 2>/dev/null
+
+    if [[ -f "\$CACHE_FILE" && -n "\$(find "\$CACHE_FILE" -mmin -"\$CACHE_LIFETIME" 2>/dev/null)" ]]; then
+        source "\$CACHE_FILE" && _auto_update_main "\$UPDATE_MODE" && return 0
+    fi
+
+    if curl -sS --max-time 30 "\$ENGINE_URL" -o "\$CACHE_FILE" 2>/dev/null; then
+        source "\$CACHE_FILE" && _auto_update_main "\$UPDATE_MODE" && return 0
+    else
+        echo "⚠️  Auto-Update Engine nicht erreichbar."
+        return 1
+    fi
+}
+
+# ==========================================
+# FALLBACK MAIN (wenn Download fehlschlägt)
+# ==========================================
+
+main() {
+    echo ""
+    echo "❌ FEHLER: Installation konnte nicht gestartet werden."
+    echo "Grund: Keine Verbindung zu GitHub oder Release nicht gefunden."
+    echo "Bitte Internetverbindung prüfen."
+    exit 1
+}
+
+# START
+auto_update
+main "\$@"
+INSTALLER_CONFIG
+
+    chmod +x "$installer_path"
+
+    log_success "Installer erstellt:"
+    echo "  Original (Backup): $backup_path"
+    echo "  Installer:         $installer_path"
+    echo ""
+    log_info "Der Installer liegt im Original-Ordner. Kopiere ihn auf den Share wenn bereit."
+}
+
+# ==========================================
 # INTERAKTIVER MODUS
 # ==========================================
 
@@ -459,7 +576,10 @@ show_status_report() {
     local version="$2"
     local local_path="$3"
 
-    local script_name=$(ls "$local_path/$repo_name"/*.sh | head -1 | xargs basename)
+    local script_name=$(ls "$local_path/$repo_name"/*.sh 2>/dev/null | head -1 | xargs basename)
+    if [[ -z "$script_name" ]]; then
+        script_name=$(ls "$local_path/$repo_name"/*.command 2>/dev/null | head -1 | xargs basename)
+    fi
 
     echo ""
     echo "=========================================="
@@ -470,28 +590,54 @@ show_status_report() {
     echo "Release:     https://github.com/$GITHUB_USER/$repo_name/releases/tag/v$version"
     echo "Local:       $local_path/$repo_name"
     echo ""
-    echo "Nächste Schritte:"
-    echo ""
-    echo "1. Token für Internal Share setzen:"
-    echo "   cd $local_path/$repo_name"
-    echo "   vim $script_name"
-    echo "   # Ändere: GITHUB_TOKEN=\"your_token_here\""
-    echo "   cp $script_name /Volumes/ZS_Share/Scripts/$script_name"
-    echo ""
-    echo "2. Öffne in SublimeMerge:"
-    echo "   open -a \"Sublime Merge\" $local_path/$repo_name"
-    echo ""
-    echo "3. Editiere Script:"
-    echo "   vim $local_path/$repo_name/$script_name"
-    echo "   # Ändere SCRIPT_VERSION=\"x.y.z\" für neues Feature"
-    echo ""
-    echo "4. Commit & Push:"
-    echo "   git add $script_name"
-    echo "   git commit -m \"Update: Feature X\""
-    echo "   git push"
-    echo ""
-    echo "5. GitHub Action erstellt automatisch Release v{neue_version}!"
-    echo ""
+
+    if [[ "$INSTALLER_MODE" == "1" ]]; then
+        # Installer-Mode Status
+        echo "Installer-Mode:"
+        echo "  Original (Backup):  ${SCRIPT_PATH}.old"
+        echo "  Installer:          ${SCRIPT_PATH}"
+        echo "  GitHub (Echtes):    $local_path/$repo_name/$script_name"
+        echo ""
+        echo "Nächste Schritte:"
+        echo ""
+        echo "1. Kopiere Installer auf Share:"
+        echo "   cp ${SCRIPT_PATH} /Volumes/ZS_Share/Scripts/$(basename $SCRIPT_PATH)"
+        echo ""
+        echo "2. Echtes Script entwickeln:"
+        echo "   open -a \"Sublime Merge\" $local_path/$repo_name"
+        echo "   vim $local_path/$repo_name/$script_name"
+        echo ""
+        echo "3. Bei Änderungen: SCRIPT_VERSION bumpen, commit, push"
+        echo "   → GitHub Action erstellt automatisch neuen Release"
+        echo ""
+        echo "4. Installer auf Share lädt IMMER neueste Version von GitHub!"
+        echo ""
+    else
+        # Normal-Mode Status
+        echo "Nächste Schritte:"
+        echo ""
+        echo "1. Token für Internal Share setzen:"
+        echo "   cd $local_path/$repo_name"
+        echo "   vim $script_name"
+        echo "   # Ändere: GITHUB_TOKEN=\"your_token_here\""
+        echo "   cp $script_name /Volumes/ZS_Share/Scripts/$script_name"
+        echo ""
+        echo "2. Öffne in SublimeMerge:"
+        echo "   open -a \"Sublime Merge\" $local_path/$repo_name"
+        echo ""
+        echo "3. Editiere Script:"
+        echo "   vim $local_path/$repo_name/$script_name"
+        echo "   # Ändere SCRIPT_VERSION=\"x.y.z\" für neues Feature"
+        echo ""
+        echo "4. Commit & Push:"
+        echo "   git add $script_name"
+        echo "   git commit -m \"Update: Feature X\""
+        echo "   git push"
+        echo ""
+        echo "5. GitHub Action erstellt automatisch Release v{neue_version}!"
+        echo ""
+    fi
+
     echo "=========================================="
 }
 
@@ -523,6 +669,14 @@ main() {
                 REPO_VISIBILITY="public"
                 shift
                 ;;
+            --installer-mode)
+                INSTALLER_MODE="1"
+                shift
+                ;;
+            --share-token)
+                SHARE_TOKEN="$2"
+                shift 2
+                ;;
             --help)
                 show_help
                 exit 0
@@ -538,6 +692,7 @@ main() {
     # Defaults setzen
     LOCAL_PATH="${LOCAL_PATH:-$DEFAULT_LOCAL_PATH}"
     REPO_VISIBILITY="${REPO_VISIBILITY:-private}"
+    INSTALLER_MODE="${INSTALLER_MODE:-0}"
 
     echo ""
     echo "=========================================="
@@ -590,6 +745,19 @@ main() {
 
     # 5. Create Initial Release
     create_initial_release "$REPO_NAME" "$VERSION" "$LOCAL_PATH"
+
+    # 6. Installer-Mode (optional)
+    if [[ "$INSTALLER_MODE" == "1" ]]; then
+        echo ""
+        log_info "Installer-Modus aktiviert"
+
+        if [[ -z "$SHARE_TOKEN" ]]; then
+            log_error "Installer-Modus benötigt --share-token TOKEN"
+            exit 1
+        fi
+
+        create_installer "$SCRIPT_PATH" "$REPO_NAME" "$SHARE_TOKEN" "$VERSION"
+    fi
 
     # === MIGRATION COMPLETE ===
 

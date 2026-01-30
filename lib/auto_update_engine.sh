@@ -439,6 +439,18 @@ _update_github_release() {
             cp -r "$extract_dir/DEP/"* "$dep_target/" 2>/dev/null
         fi
 
+        # Kopiere weitere Scripts aus dem Archive (z.B. Uninstall-Scripts)
+        local script_target_dir="$(dirname "$0")"
+        local current_script_name="$(basename "$0")"
+        local additional_scripts=$(find "$extract_dir" -maxdepth 1 -type f \( -name "*.sh" -o -name "*.command" \) ! -name "$current_script_name")
+
+        if [[ -n "$additional_scripts" ]]; then
+            _log DEBUG "Kopiere zusätzliche Scripts: $additional_scripts"
+            while IFS= read -r script; do
+                cp "$script" "$script_target_dir/" 2>/dev/null && chmod +x "$script_target_dir/$(basename "$script")"
+            done <<< "$additional_scripts"
+        fi
+
         rm -rf "$temp_download" "$extract_dir"
 
     else

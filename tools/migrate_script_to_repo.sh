@@ -19,7 +19,7 @@ set -e  # Exit on error
 
 SCRIPT_VERSION="1.0.0"
 GITHUB_USER="7onnie"  # Default GitHub User
-DEFAULT_LOCAL_PATH="$HOME/script-repos"
+DEFAULT_LOCAL_PATH="$HOME/GitHubRepos"
 AUTOUPDATER_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TEMPLATE_DIR="$AUTOUPDATER_ROOT/templates"
 
@@ -62,11 +62,12 @@ VERWENDUNG:
 OPTIONS:
     --script PATH           Pfad zum Script im Mono-Repo (erforderlich)
     --repo-name NAME        GitHub Repository-Name (erforderlich)
-    --local-path PATH       Lokaler Clone-Pfad (default: ~/script-repos)
+    --local-path PATH       Lokaler Clone-Pfad (default: ~/GitHubRepos)
     --private               Private Repository erstellen (default)
     --public                Public Repository erstellen
-    --installer-mode        Erstelle zusätzlich Installer-Script für Share
-    --share-token TOKEN     GitHub Token für Installer (nur mit --installer-mode)
+    --installer-mode        Erstelle zusätzlich Installer-Script für Share (default)
+    --no-installer-mode     Deaktiviere Installer-Mode
+    --share-token TOKEN     GitHub Token für Installer (erforderlich im Installer-Mode)
     --help                  Diese Hilfe anzeigen
 
 BEISPIEL:
@@ -673,6 +674,10 @@ main() {
                 INSTALLER_MODE="1"
                 shift
                 ;;
+            --no-installer-mode)
+                INSTALLER_MODE="0"
+                shift
+                ;;
             --share-token)
                 SHARE_TOKEN="$2"
                 shift 2
@@ -692,7 +697,7 @@ main() {
     # Defaults setzen
     LOCAL_PATH="${LOCAL_PATH:-$DEFAULT_LOCAL_PATH}"
     REPO_VISIBILITY="${REPO_VISIBILITY:-private}"
-    INSTALLER_MODE="${INSTALLER_MODE:-0}"
+    INSTALLER_MODE="${INSTALLER_MODE:-1}"  # Default: Installer-Mode AN
 
     echo ""
     echo "=========================================="
@@ -724,6 +729,14 @@ main() {
         exit 1
     fi
     log_info "Erkannte Version: $VERSION"
+
+    # Validate Installer-Mode requirements
+    if [[ "$INSTALLER_MODE" == "1" ]] && [[ -z "$SHARE_TOKEN" ]]; then
+        log_error "Installer-Mode ist aktiviert, aber --share-token fehlt"
+        log_info "Entweder: --share-token TOKEN angeben"
+        log_info "Oder: --no-installer-mode nutzen"
+        exit 1
+    fi
 
     # Expand ~ in paths
     SCRIPT_PATH="${SCRIPT_PATH/#\~/$HOME}"

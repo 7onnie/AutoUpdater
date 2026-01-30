@@ -18,7 +18,7 @@ UPDATE_MODE="direct_download"
 UPDATE_DOWNLOAD_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/examples/example_direct_download.sh"
 
 # Optional: URL für Version-Check
-# UPDATE_VERSION_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/master/VERSION"
+# UPDATE_VERSION_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/VERSION"
 
 # ==========================================
 # AUTO-UPDATE ENGINE (Bootstrap)

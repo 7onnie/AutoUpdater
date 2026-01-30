@@ -111,7 +111,7 @@ Das gleiche Script existiert in **zwei Versionen**:
 #### Version A: GitHub (leerer Token)
 
 ```bash
-UPDATE_GITHUB_TOKEN=""  # Leer auf GitHub
+GITHUB_TOKEN=""  # Leer auf GitHub
 ```
 
 Diese Version wird auf GitHub gepusht und ist die "offizielle" Version.
@@ -119,7 +119,7 @@ Diese Version wird auf GitHub gepusht und ist die "offizielle" Version.
 #### Version B: Internal Share (hardcoded Token)
 
 ```bash
-UPDATE_GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
 Diese Version wird auf dem Internal Share abgelegt (z.B. `/Volumes/ZS_Share/Scripts/`) und hat den Token hardcoded. Kollegen können das Script direkt nutzen ohne Token-Setup.
@@ -154,43 +154,26 @@ Ja, in diesem Kontext:
 
 ## Setup
 
-### 1. GitHub Token generieren (für Migration-Tool)
+### 1. GitHub CLI authentifizieren
 
-⚠️ **Wichtig:** Dieser Token ist NUR für das **Migration-Tool** selbst (einmalig, nur Maintainer). Die migrierten Scripts brauchen einen **anderen Token** (siehe unten)!
-
-Erstelle einen **Fine-Grained Personal Access Token** für das Migration-Tool:
-
-1. Gehe zu: https://github.com/settings/tokens?type=beta
-2. **New fine-grained token**
-3. Konfiguration:
-   - **Name:** `AutoUpdater Migration Tool`
-   - **Expiration:** 90 Tage (erneuern nach Ablauf)
-   - **Repository access:** All repositories (oder spezifisch)
-   - **Permissions:**
-     - Repository: `Contents` (**Read/Write**) - zum Repos erstellen
-     - Repository: `Metadata` (Read) - zum Repo-Info lesen
-     - Repository: `Workflows` (**Read/Write**) - zum Workflows erstellen
-4. **Generate token**
-5. **Token kopieren** (wird nur einmal angezeigt!)
-
-### 2. Token in Umgebung setzen (für Migration-Tool)
-
-Dieser Token wird vom **Migration-Tool** genutzt um Repos zu erstellen:
+Das Migration-Tool nutzt `gh` CLI - **kein separater Token nötig**!
 
 ```bash
-# Temporär (nur für aktuelle Session)
-export GITHUB_TOKEN="github_pat_XXXXXXXXXXXXXXXXXXXX"
+# Einmalig: GitHub CLI authentifizieren
+gh auth login
 
-# Persistent (in ~/.zshrc) - empfohlen für häufige Nutzung
-echo 'export GITHUB_TOKEN="github_pat_XXX"' >> ~/.zshrc
-source ~/.zshrc
+# Folge den Prompts:
+# - Where do you use GitHub? → GitHub.com
+# - Protocol? → SSH (empfohlen) oder HTTPS
+# - Authenticate? → Login with a web browser
 
 # Validieren
-echo $GITHUB_TOKEN
 gh auth status
 ```
 
-### 3. Token für Scripts erstellen (Read-Only)
+**Fertig!** Nach `gh auth login` kann das Migration-Tool Repos erstellen, Workflows pushen etc.
+
+### 2. Token für Scripts erstellen (Read-Only)
 
 Die **migrierten Scripts** brauchen einen **separaten Token** (nur Read-Rechte):
 
@@ -206,11 +189,11 @@ Die **migrierten Scripts** brauchen einen **separaten Token** (nur Read-Rechte):
 4. **Generate token**
 5. Dieser Token wird **hardcoded** in Scripts auf Internal Share
 
-**Warum zwei Token?**
-- Migration-Tool: Braucht Write-Rechte (einmalig, nur Maintainer)
-- Script-Enduser: Brauchen nur Read-Rechte (sicherer, weniger privilegiert)
+**Warum separater Token?**
+- Migration-Tool: Nutzt `gh auth` (kein Token nötig)
+- Script-Enduser: Brauchen Token für Private-Repo-Downloads (Read-only ausreichend)
 
-### 4. Migration-Tool vorbereiten
+### 3. Migration-Tool vorbereiten
 
 ```bash
 cd /Users/user/ZS_Share/AutoUpdater
@@ -222,15 +205,15 @@ chmod +x tools/migrate_script_to_repo.sh
 
 ---
 
-## Zusammenfassung: Zwei Token, zwei Zwecke
+## Zusammenfassung: Authentifizierung
 
-| Token | Zweck | Rechte | Nutzer | Verwendung |
-|-------|-------|--------|--------|------------|
-| **Migration Token** | Repos erstellen, Workflows erstellen | Contents: R/W, Workflows: R/W | Maintainer (du) | `export GITHUB_TOKEN=...` |
-| **Script Token** | Private Releases downloaden | Contents: Read-only | Enduser (Kollegen) | Hardcoded in Script auf Share |
+| Komponente | Methode | Rechte | Nutzer |
+|------------|---------|--------|--------|
+| **Migration-Tool** | `gh auth login` | Read/Write (via gh) | Maintainer (du) |
+| **Script-Token** | Hardcoded Token | Read-only | Enduser (Kollegen) |
 
-**Migration Token** = einmalig beim Migrieren (Write-Rechte nötig)
-**Script Token** = dauerhaft in Scripts (Read-only ausreichend)
+**Migration-Tool:** Nutzt `gh auth` - keine Token-Konfiguration nötig!
+**Script-Token:** Nur für Private-Repo-Downloads (hardcoded auf Share)
 
 ---
 
@@ -287,7 +270,7 @@ UPDATE_MODE="github_release"
 UPDATE_GITHUB_USER="7onnie"
 UPDATE_GITHUB_REPO="mein-script-installer"  # ← Anpassen!
 UPDATE_RELEASE_TAG="latest"
-UPDATE_GITHUB_TOKEN=""  # Leer für GitHub
+GITHUB_TOKEN=""  # Leer für GitHub
 
 auto_update() {
     # ... Bootstrap Code ...
@@ -382,10 +365,10 @@ cd ~/script-repos/mein-script-installer
 vim MeinScript.sh
 
 # 2. Finde Zeile:
-# UPDATE_GITHUB_TOKEN=""
+# GITHUB_TOKEN=""
 
 # 3. Ersetze mit deinem Token:
-# UPDATE_GITHUB_TOKEN="github_pat_XXX"
+# GITHUB_TOKEN="github_pat_XXX"
 
 # 4. Speichern (NICHT committen! Diese Version ist nur für Share!)
 
@@ -505,7 +488,7 @@ _preserve_sensitive_vars() {
     # Extrahiere Token aus altem Script
     local old_token=""
     if [[ -f "$old_script" ]]; then
-        old_token=$(grep -E '^UPDATE_GITHUB_TOKEN=' "$old_script" | \
+        old_token=$(grep -E '^GITHUB_TOKEN=' "$old_script" | \
                     head -1 | cut -d'"' -f2 2>/dev/null || echo "")
     fi
 
@@ -513,7 +496,7 @@ _preserve_sensitive_vars() {
     if [[ -n "$old_token" && "$old_token" != "" ]]; then
         _log DEBUG "Preserving GitHub token in updated version"
         new_content=$(echo "$new_content" | \
-                      sed "s|^UPDATE_GITHUB_TOKEN=\"[^\"]*\"|UPDATE_GITHUB_TOKEN=\"$old_token\"|g")
+                      sed "s|^GITHUB_TOKEN=\"[^\"]*\"|GITHUB_TOKEN=\"$old_token\"|g")
     fi
 
     echo "$new_content"
@@ -531,7 +514,7 @@ Validiere Token-Preservation:
 cat > /tmp/test_preserve.sh <<'EOF'
 #!/bin/bash
 SCRIPT_VERSION="1.0.0"
-UPDATE_GITHUB_TOKEN="ghp_TEST_TOKEN"
+GITHUB_TOKEN="ghp_TEST_TOKEN"
 EOF
 
 # Source Engine
@@ -539,13 +522,13 @@ source /Users/user/ZS_Share/AutoUpdater/lib/auto_update_engine.sh
 
 # Simuliere neue Version OHNE Token
 NEW='SCRIPT_VERSION="1.0.1"
-UPDATE_GITHUB_TOKEN=""'
+GITHUB_TOKEN=""'
 
 # Teste Preservation
 RESULT=$(_preserve_sensitive_vars "/tmp/test_preserve.sh" "$NEW")
 
 # Token sollte erhalten sein
-echo "$RESULT" | grep 'UPDATE_GITHUB_TOKEN="ghp_TEST_TOKEN"'
+echo "$RESULT" | grep 'GITHUB_TOKEN="ghp_TEST_TOKEN"'
 # ✅ Token wurde preserviert!
 ```
 

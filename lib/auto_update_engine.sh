@@ -136,10 +136,10 @@ _preserve_sensitive_vars() {
     local old_script="$1"
     local new_content="$2"
 
-    # Extrahiere UPDATE_GITHUB_TOKEN aus altem Script
+    # Extrahiere GITHUB_TOKEN aus altem Script
     local old_token=""
     if [[ -f "$old_script" ]]; then
-        old_token=$(grep -E '^UPDATE_GITHUB_TOKEN=' "$old_script" | head -1 | cut -d'"' -f2 2>/dev/null || echo "")
+        old_token=$(grep -E '^GITHUB_TOKEN=' "$old_script" | head -1 | cut -d'"' -f2 2>/dev/null || echo "")
     fi
 
     # Wenn Token vorhanden und nicht leer, in neue Version einsetzen
@@ -147,8 +147,8 @@ _preserve_sensitive_vars() {
         _log DEBUG "Preserving GitHub token in updated version"
 
         # Token in new_content ersetzen
-        # Matcht: UPDATE_GITHUB_TOKEN="" oder UPDATE_GITHUB_TOKEN="ghp_xxx"
-        new_content=$(echo "$new_content" | sed "s|^UPDATE_GITHUB_TOKEN=\"[^\"]*\"|UPDATE_GITHUB_TOKEN=\"$old_token\"|g")
+        # Matcht: GITHUB_TOKEN="" oder GITHUB_TOKEN="ghp_xxx"
+        new_content=$(echo "$new_content" | sed "s|^GITHUB_TOKEN=\"[^\"]*\"|GITHUB_TOKEN=\"$old_token\"|g")
     fi
 
     # Rückgabe des (ggf. modifizierten) Contents
@@ -229,7 +229,7 @@ _update_github_release() {
     # Konfiguration aus Umgebungsvariablen
     local github_user="${UPDATE_GITHUB_USER:-}"
     local github_repo="${UPDATE_GITHUB_REPO:-}"
-    local github_token="${UPDATE_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
+    local github_token="${GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
     local release_tag="${UPDATE_RELEASE_TAG:-latest}"
     local asset_name="${UPDATE_ASSET_NAME:-}"
     local is_archive="${UPDATE_IS_ARCHIVE:-0}"

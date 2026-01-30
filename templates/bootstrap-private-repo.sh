@@ -6,7 +6,7 @@
 # automatisch in migrierten Scripts eingefügt.
 #
 # WICHTIG: Für Internal Share Token hardcoden!
-# UPDATE_GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
+# GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
 # ==========================================
 
 # Auto-Update Konfiguration
@@ -14,7 +14,7 @@ UPDATE_MODE="github_release"
 UPDATE_GITHUB_USER="{{GITHUB_USER}}"           # Wird vom Migration-Script ersetzt
 UPDATE_GITHUB_REPO="{{GITHUB_REPO}}"           # Wird vom Migration-Script ersetzt
 UPDATE_RELEASE_TAG="latest"
-UPDATE_GITHUB_TOKEN=""                         # Leer für GitHub, hardcoded für Internal Share
+GITHUB_TOKEN=""                         # Leer für GitHub, hardcoded für Internal Share
 
 # ==========================================
 # AUTO-UPDATE BOOTSTRAP (Minimal)

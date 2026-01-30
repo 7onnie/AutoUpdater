@@ -15,7 +15,7 @@ SCRIPT_VERSION_DATE="20260126"
 UPDATE_MODE="direct_download"
 
 # Download URL (raw.githubusercontent.com für GitHub)
-UPDATE_DOWNLOAD_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/master/examples/example_direct_download.sh"
+UPDATE_DOWNLOAD_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/main/examples/example_direct_download.sh"
 
 # Optional: URL für Version-Check
 # UPDATE_VERSION_URL="https://raw.githubusercontent.com/7onnie/AutoUpdater/master/VERSION"

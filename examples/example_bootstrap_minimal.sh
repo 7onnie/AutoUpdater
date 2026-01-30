@@ -20,8 +20,8 @@ UPDATE_ASSET_NAME=""  # Leer = erstes Asset verwenden
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"  # Aus Umgebungsvariable
 
 # Optional: Debugging
-# UPDATE_VERBOSE=1
-# UPDATE_DRY_RUN=1
+UPDATE_VERBOSE=1
+UPDATE_DRY_RUN=1
 
 # ==========================================
 # AUTO-UPDATE BOOTSTRAP (MINIMAL)

@@ -2,7 +2,7 @@
 # ==========================================
 # AUTO-UPDATE ENGINE - STANDALONE VERSION
 # ==========================================
-# Version: 1.0.0
+# Version: 1.1.0
 #
 # VERWENDUNG: Copy-Paste in dein Script
 #
@@ -115,6 +115,29 @@ _rollback_script() {
     return 1
 }
 
+_preserve_sensitive_vars() {
+    local old_script="$1"
+    local new_content="$2"
+
+    # Extrahiere UPDATE_GITHUB_TOKEN aus altem Script
+    local old_token=""
+    if [[ -f "$old_script" ]]; then
+        old_token=$(grep -E '^UPDATE_GITHUB_TOKEN=' "$old_script" | head -1 | cut -d'"' -f2 2>/dev/null || echo "")
+    fi
+
+    # Wenn Token vorhanden und nicht leer, in neue Version einsetzen
+    if [[ -n "$old_token" && "$old_token" != "" ]]; then
+        _log DEBUG "Preserving GitHub token in updated version"
+
+        # Token in new_content ersetzen
+        # Matcht: UPDATE_GITHUB_TOKEN="" oder UPDATE_GITHUB_TOKEN="ghp_xxx"
+        new_content=$(echo "$new_content" | sed "s|^UPDATE_GITHUB_TOKEN=\"[^\"]*\"|UPDATE_GITHUB_TOKEN=\"$old_token\"|g")
+    fi
+
+    # Rückgabe des (ggf. modifizierten) Contents
+    echo "$new_content"
+}
+
 _self_replace() {
     local script_path="$1"
     local new_content="$2"
@@ -123,6 +146,9 @@ _self_replace() {
         _log INFO "[DRY-RUN] Würde Script aktualisieren: $script_path"
         return 0
     fi
+
+    # NEU: Sensitive Variablen preserven
+    new_content=$(_preserve_sensitive_vars "$script_path" "$new_content")
 
     local backup_path
     backup_path=$(_backup_script "$script_path")

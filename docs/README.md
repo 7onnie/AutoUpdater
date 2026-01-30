@@ -145,7 +145,8 @@ AutoUpdater/
 1. **Setup:** [SETUP.md](SETUP.md) - GitHub Token erstellen, Repository konfigurieren
 2. **Modus wählen:** [MODES.md](MODES.md) - Welcher Modus passt zu deinem Use-Case?
 3. **Integration:** [MIGRATION.md](MIGRATION.md) - Bestehendes Script migrieren
-4. **Deployment:** [DEPLOYMENT.md](DEPLOYMENT.md) - CI/CD, automatische Releases
+4. **Mono-Repo → Eigene Repos:** [SCRIPT_MIGRATION.md](SCRIPT_MIGRATION.md) - Scripts aus Mono-Repo in eigene GitHub Repos migrieren (neu!)
+5. **Deployment:** [DEPLOYMENT.md](DEPLOYMENT.md) - CI/CD, automatische Releases
 
 ---
 
@@ -285,6 +286,12 @@ MIT License - Frei verwendbar für kommerzielle und private Projekte.
 ---
 
 ## Changelog
+
+### v1.1.0 (2026-01-30)
+- **Token-Preservation:** Hardcoded Tokens bleiben bei Self-Updates erhalten
+- **Migration-Tool:** Automatisches Migrieren von Scripts aus Mono-Repo in eigene GitHub Repos
+- **Auto-Release-Template:** GitHub Action für automatische Releases bei Version-Änderung
+- **Dokumentation:** Umfassende Script-Migration Anleitung
 
 ### v1.0.0 (2026-01-26)
 - Initial Release

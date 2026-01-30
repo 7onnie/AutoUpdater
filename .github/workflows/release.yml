@@ -1,8 +1,6 @@
-name: Auto Release Example
+name: Auto Release
 
-# Dieser Workflow ist ein BEISPIEL und sollte für konkrete
-# Projekte angepasst werden. Er zeigt wie man automatische
-# Releases bei Git-Tags erstellt.
+# Automatische Release-Erstellung bei Git-Tags (v1.0.0, v2.1.3, etc.)
 
 on:
   push:
@@ -58,6 +56,7 @@ jobs:
           - [Deployment Guide](https://github.com/7onnie/AutoUpdater/blob/master/docs/DEPLOYMENT.md)
           - [Modes Comparison](https://github.com/7onnie/AutoUpdater/blob/master/docs/MODES.md)
           - [Migration Guide](https://github.com/7onnie/AutoUpdater/blob/master/docs/MIGRATION.md)
+          - [Script Migration Tool](https://github.com/7onnie/AutoUpdater/blob/master/docs/SCRIPT_MIGRATION.md)
           EOF
 
       - name: Create GitHub Release

@@ -14,7 +14,8 @@ UPDATE_MODE="github_release"
 UPDATE_GITHUB_USER="{{GITHUB_USER}}"           # Wird vom Migration-Script ersetzt
 UPDATE_GITHUB_REPO="{{GITHUB_REPO}}"           # Wird vom Migration-Script ersetzt
 UPDATE_RELEASE_TAG="latest"
-{{ARCHIVE_CONFIG}}# Wird vom Migration-Script ersetzt (nur wenn DEP vorhanden)
+# Wird vom Migration-Script ersetzt (nur wenn DEP vorhanden):
+{{ARCHIVE_CONFIG}}
 GITHUB_TOKEN=""                         # Leer für GitHub, hardcoded für Internal Share
 
 # ==========================================

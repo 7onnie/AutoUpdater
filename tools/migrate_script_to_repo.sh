@@ -579,7 +579,12 @@ create_initial_release() {
 
         # Erstelle temporären Build-Ordner
         mkdir -p build
-        cp "$script_name" build/
+
+        # Kopiere ALLE Scripts (.sh und .command)
+        cp *.sh build/ 2>/dev/null || true
+        cp *.command build/ 2>/dev/null || true
+
+        # Kopiere DEP-Ordner
         cp -r DEP build/
 
         # Erstelle tar.gz Archive
@@ -588,8 +593,9 @@ create_initial_release() {
 
         log_success "Archive erstellt: $archive_name"
 
-        # Beide Assets hochladen
-        assets="$archive_name $script_name"
+        # Ermittle alle Script-Assets für Upload
+        local all_scripts=$(ls *.sh *.command 2>/dev/null | tr '\n' ' ')
+        assets="$archive_name $all_scripts"
     fi
 
     # Erstelle Release Notes

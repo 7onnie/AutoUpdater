@@ -1,0 +1,157 @@
+name: Auto Release on Version Change
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '*.sh'  # Nur bei Script-Änderungen
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Komplette History für Changelog
+
+      - name: Find shell script
+        id: find_script
+        run: |
+          SCRIPT=$(ls *.sh | head -1)
+          if [ -z "$SCRIPT" ]; then
+            echo "❌ No shell script found"
+            exit 1
+          fi
+          echo "script=$SCRIPT" >> $GITHUB_OUTPUT
+          echo "Found script: $SCRIPT"
+
+      - name: Extract current version
+        id: current_version
+        run: |
+          SCRIPT="${{ steps.find_script.outputs.script }}"
+          VERSION=$(grep '^SCRIPT_VERSION=' "$SCRIPT" | head -1 | cut -d'"' -f2)
+
+          if [ -z "$VERSION" ]; then
+            echo "❌ No SCRIPT_VERSION found in $SCRIPT"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Get latest release version
+        id: latest_release
+        run: |
+          LATEST=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+          LATEST=${LATEST#v}  # Remove v prefix
+
+          echo "version=$LATEST" >> $GITHUB_OUTPUT
+          echo "Latest release: ${LATEST:-none}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if version changed
+        id: check
+        run: |
+          CURRENT="${{ steps.current_version.outputs.version }}"
+          LATEST="${{ steps.latest_release.outputs.version }}"
+
+          if [ "$CURRENT" != "$LATEST" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✅ Version changed: $LATEST → $CURRENT"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "⏭️  No version change (still $CURRENT)"
+          fi
+
+      - name: Create Git Tag
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "v$VERSION" -m "Release version $VERSION"
+          git push origin "v$VERSION"
+
+      - name: Generate Changelog
+        if: steps.check.outputs.changed == 'true'
+        id: changelog
+        run: |
+          PREV_TAG="${{ steps.latest_release.outputs.version }}"
+
+          if [ -n "$PREV_TAG" ]; then
+            # Changelog since last release
+            CHANGELOG=$(git log "v$PREV_TAG"..HEAD --pretty=format:"- %s (%an)" 2>/dev/null || echo "")
+          else
+            # Initial release - use recent commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%an)" -n 10)
+          fi
+
+          # Fallback wenn keine Commits
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Initial release"
+          fi
+
+          # Multiline output für GitHub Actions
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release Notes
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          SCRIPT="${{ steps.find_script.outputs.script }}"
+          SCRIPT_NAME="${SCRIPT%.sh}"
+          REPO="${{ github.repository }}"
+
+          cat > release_notes.md <<EOF
+          # $SCRIPT_NAME v$VERSION
+
+          ## Changes
+
+          ${{ steps.changelog.outputs.changelog }}
+
+          ## Installation
+
+          \`\`\`bash
+          # Download latest version
+          curl -L -o $SCRIPT https://github.com/$REPO/releases/download/v$VERSION/$SCRIPT
+          chmod +x $SCRIPT
+
+          # Or use wget
+          wget https://github.com/$REPO/releases/download/v$VERSION/$SCRIPT
+          chmod +x $SCRIPT
+          \`\`\`
+
+          ## Auto-Update
+
+          This script includes AutoUpdater. Run it to automatically update to the latest version.
+
+          ## Usage
+
+          \`\`\`bash
+          ./$SCRIPT
+          \`\`\`
+          EOF
+
+          cat release_notes.md
+
+      - name: Create Release
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.current_version.outputs.version }}"
+          SCRIPT="${{ steps.find_script.outputs.script }}"
+          SCRIPT_NAME="${SCRIPT%.sh}"
+
+          # Create release
+          gh release create "v$VERSION" \
+            --title "$SCRIPT_NAME v$VERSION" \
+            --notes-file release_notes.md \
+            "$SCRIPT"
+
+          echo "✅ Release v$VERSION created successfully!"

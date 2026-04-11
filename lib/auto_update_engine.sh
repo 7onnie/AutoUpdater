@@ -240,11 +240,6 @@ _update_github_release() {
         return 1
     fi
 
-    # Warnung bei hardcoded Token
-    if [[ -n "$github_token" && "$github_token" == github_pat_* ]]; then
-        _log WARN "GitHub Token ist im Script hardcoded - erwäge Nutzung von Umgebungsvariablen"
-    fi
-
     # API URL konstruieren
     local api_url
     if [[ "$release_tag" == "latest" ]]; then

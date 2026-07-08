@@ -164,6 +164,18 @@ _self_replace() {
         return 0
     fi
 
+    # Zentrale Validierung für ALLE Update-Pfade (Release-Asset, Archive, Direct):
+    # neuer Inhalt muss wie ein Shell-Script aussehen UND parsen — sonst ersetzt
+    # eine HTTP-Fehlerseite (429 Rate-Limit, 404) das Live-Script.
+    local _val_tmp="/tmp/auto_update_validate_$$"
+    printf '%s\n' "$new_content" > "$_val_tmp"
+    if ! head -n1 "$_val_tmp" | grep -q '^#!/.*sh' || ! bash -n "$_val_tmp" 2>/dev/null; then
+        _log ERROR "Neue Version ist kein gültiges Shell-Script — Update abgebrochen"
+        rm -f "$_val_tmp"
+        return 1
+    fi
+    rm -f "$_val_tmp"
+
     # NEU: Sensitive Variablen preserven
     new_content=$(_preserve_sensitive_vars "$script_path" "$new_content")
 
@@ -264,7 +276,9 @@ _update_github_release() {
     # Release-Info abrufen
     _log INFO "Prüfe auf Updates..."
     local release_info
-    release_info=$(curl -sS --max-time "$UPDATE_TIMEOUT" "${curl_headers[@]}" "$api_url" 2>&1)
+    # -f: bei HTTP-Fehlern (429 Rate-Limit, 404) exit != 0 — sonst landet der
+    # Fehler-Body als "Release-Info" im Cache und vergiftet auch Folge-Läufe.
+    release_info=$(curl -fsS --max-time "$UPDATE_TIMEOUT" "${curl_headers[@]}" "$api_url" 2>&1)
 
     if [[ $? -ne 0 ]]; then
         _log ERROR "GitHub API nicht erreichbar: $release_info"
@@ -374,7 +388,9 @@ _update_github_release() {
         download_headers=("${curl_headers[@]}")
     fi
 
-    if ! curl -sS --max-time "$UPDATE_TIMEOUT" -L "${download_headers[@]}" "$asset_url" -o "$temp_download"; then
+    # -f: HTTP-Fehlerseite (429/404) darf nicht als Download-Ergebnis gelten —
+    # sie würde sonst via _self_replace das Live-Script ersetzen.
+    if ! curl -fsS --max-time "$UPDATE_TIMEOUT" -L "${download_headers[@]}" "$asset_url" -o "$temp_download"; then
         _log ERROR "Download fehlgeschlagen"
         rm -f "$temp_download"
         return 1
@@ -575,7 +591,9 @@ _update_direct_download() {
         _log INFO "Prüfe Remote-Version..."
 
         local remote_version
-        remote_version=$(curl -sS --max-time "$UPDATE_TIMEOUT" "$version_url" 2>/dev/null | tr -d '"\n ')
+        # -f: sonst wird ein HTTP-Fehler-Body ("429: Too Many Requests") zur
+        # "Remote-Version" und triggert ein Pseudo-Update.
+        remote_version=$(curl -fsS --max-time "$UPDATE_TIMEOUT" "$version_url" 2>/dev/null | tr -d '"\n ')
 
         if [[ -n "$remote_version" ]]; then
             local current_version="${SCRIPT_VERSION:-unknown}"

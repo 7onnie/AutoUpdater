@@ -1,11 +1,20 @@
-# AutoUpdater
+<h1 align="center">AutoUpdater</h1>
 
-**Universelle Auto-Update-Engine für Shell-Scripts**
+<p align="center">
+  Universelle Auto-Update-Engine für Shell-Scripts.
+</p>
+
+<!-- BADGES:START -->
+<p align="center">
+  <a href="https://github.com/7onnie/AutoUpdater/actions/workflows/test.yml"><img alt="CI" src="https://github.com/7onnie/AutoUpdater/actions/workflows/test.yml/badge.svg"></a>
+  <a href="https://github.com/7onnie/AutoUpdater/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/7onnie/AutoUpdater?sort=semver"></a>
+  <a href="https://github.com/7onnie/AutoUpdater/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/7onnie/AutoUpdater/total.svg"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/7onnie/AutoUpdater"></a>
+  <a href="https://buymeacoffee.com/7onnie"><img alt="Buy me a coffee" src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black"></a>
+</p>
+<!-- BADGES:END -->
 
 Modulares System mit 3 Update-Modi für verschiedene Anwendungsfälle. Einfache Integration per Copy-Paste oder Bootstrap-Loader.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Shell](https://img.shields.io/badge/Shell-Bash-green.svg)](https://www.gnu.org/software/bash/)
 
 ---
 

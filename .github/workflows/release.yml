@@ -13,6 +13,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
       - name: Checkout code
@@ -112,6 +113,7 @@ jobs:
   notify:
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: success()
 
     steps:

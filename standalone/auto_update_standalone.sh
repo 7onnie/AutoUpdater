@@ -125,8 +125,15 @@ _preserve_sensitive_vars() {
         old_token=$(grep -E '^GITHUB_TOKEN=' "$old_script" | head -1 | cut -d'"' -f2 2>/dev/null || echo "")
     fi
 
-    # Wenn Token vorhanden und nicht leer, in neue Version einsetzen
-    if [[ -n "$old_token" && "$old_token" != "" ]]; then
+    # Extrahiere GITHUB_TOKEN aus der neuen, ausgelieferten Version
+    local new_token=""
+    new_token=$(echo "$new_content" | grep -E '^GITHUB_TOKEN=' | head -1 | cut -d'"' -f2 2>/dev/null || echo "")
+
+    if [[ -n "$new_token" ]]; then
+        # Ein rotierter Token wurde ausgeliefert: er hat Vorrang vor dem alten Token,
+        # sonst wäre Token-Rotation über ein Release nie möglich (Issue #1).
+        _log DEBUG "Neuer GitHub-Token in ausgelieferter Version erkannt, wird übernommen"
+    elif [[ -n "$old_token" ]]; then
         _log DEBUG "Preserving GitHub token in updated version"
 
         # Token in new_content ersetzen

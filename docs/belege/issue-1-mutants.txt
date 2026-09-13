@@ -1,0 +1,25 @@
+MUTANT frozen_file_token: exit=1
+FAIL lib/auto_update_engine.sh::rotation_A_to_B
+FAIL lib/auto_update_github_only.sh::rotation_A_to_B
+FAIL lib/auto_update_direct_only.sh::rotation_A_to_B
+FAIL standalone/auto_update_standalone.sh::rotation_A_to_B
+TOTAL: 40, PASSED: 16, FAILED: 24, SKIPPED: 0
+MUTANT inverted_file_selection: exit=1
+FAIL lib/auto_update_engine.sh::rotation_A_to_B
+FAIL lib/auto_update_github_only.sh::rotation_A_to_B
+FAIL lib/auto_update_direct_only.sh::rotation_A_to_B
+FAIL standalone/auto_update_standalone.sh::rotation_A_to_B
+TOTAL: 40, PASSED: 8, FAILED: 32, SKIPPED: 0
+MUTANT frozen_environment_token: exit=1
+FAIL lib/auto_update_engine.sh::environment_source
+FAIL lib/auto_update_github_only.sh::environment_source
+FAIL lib/auto_update_direct_only.sh::environment_source
+FAIL standalone/auto_update_standalone.sh::environment_source
+TOTAL: 40, PASSED: 24, FAILED: 16, SKIPPED: 0
+MUTANTS: 3 caught, 0 survived
+RESTORED: testing unchanged working tree
+lib/auto_update_engine.sh: passed=10 failed=0
+lib/auto_update_github_only.sh: passed=10 failed=0
+lib/auto_update_direct_only.sh: passed=10 failed=0
+standalone/auto_update_standalone.sh: passed=10 failed=0
+TOTAL: 40, PASSED: 40, FAILED: 0, SKIPPED: 0

@@ -8,12 +8,13 @@ root = Path(__file__).resolve().parents[1]
 files = ["lib/auto_update_engine.sh", "lib/auto_update_github_only.sh",
          "lib/auto_update_direct_only.sh", "standalone/auto_update_standalone.sh"]
 mutants = [
-    ("frozen_file_token", 'cat -- "$GITHUB_TOKEN_FILE"', 'printf OLD_TOKEN',
-     "rotation_A_to_B"),
-    ("inverted_file_selection", '[[ -n "${GITHUB_TOKEN_FILE:-}" ]]',
-     '[[ -z "${GITHUB_TOKEN_FILE:-}" ]]', "rotation_A_to_B"),
-    ("frozen_environment_token", 'else\n    GITHUB_TOKEN="${GITHUB_TOKEN:-}"',
-     'else\n    GITHUB_TOKEN="OLD_TOKEN"', "environment_source"),
+    ("skip_update_empty_guard", 'if [[ -z "$source_token" ]]; then',
+     'if false; then', "empty_source_aborts_update"),
+    ("skip_runtime_empty_guard", 'if [[ -z "$GITHUB_TOKEN" ]]; then',
+     'if false; then', "empty_file_fails_closed"),
+    ("ignore_migration_failure", 'new_content=$(_preserve_sensitive_vars "$script_path" "$new_content") || return 1',
+     'new_content=$(_preserve_sensitive_vars "$script_path" "$new_content")',
+     "empty_source_aborts_update"),
 ]
 for name, before, after, catcher in mutants:
     with tempfile.TemporaryDirectory(prefix="autoupdater-mutant-") as directory:
@@ -33,6 +34,12 @@ for name, before, after, catcher in mutants:
         assert result.returncode == 1, result.stdout + result.stderr
         for file in files:
             assert f"FAIL {file}::{catcher}" in result.stdout, result.stdout
+    restored = subprocess.run([str(root / "tests/test_credential_rotation.sh")], text=True, capture_output=True)
+    print(f"RESTORED {name}: exit={restored.returncode}")
+    for line in restored.stdout.splitlines():
+        if f"::{catcher}" in line or line.startswith("TOTAL:"):
+            print(line)
+    assert restored.returncode == 0, restored.stdout + restored.stderr
 print("MUTANTS: 3 caught, 0 survived")
 print("RESTORED: testing unchanged working tree", flush=True)
 subprocess.run([str(root / "tests/test_credential_rotation.sh")], check=True)

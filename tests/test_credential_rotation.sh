@@ -9,9 +9,10 @@ for file in "${files[@]}"; do
     (
         source "$REPO_ROOT/$file"
         UPDATE_VERBOSE=0 UPDATE_BACKUP=0 UPDATE_DRY_RUN=0
+        GITHUB_TOKEN=ENV_SOURCE
         passed=0 failed=0
         check() {
-            if "$@"; then passed=$((passed + 1)); else
+            if "$@"; then echo "PASS $file::$name"; passed=$((passed + 1)); else
                 echo "FAIL $file::$name"
                 failed=$((failed + 1))
             fi
@@ -41,10 +42,22 @@ for file in "${files[@]}"; do
         name=missing_file_fails_closed
         GITHUB_TOKEN=STALE_ENV GITHUB_TOKEN_FILE="$TEST_DIR/missing" bash "$old" > "$TEST_DIR/missing.log" 2>&1
         check test "$?" -ne 0
-        name=empty_file_clears_token
+        name=empty_file_fails_closed
         : > "$TEST_DIR/source"
-        value=$(GITHUB_TOKEN=STALE_ENV GITHUB_TOKEN_FILE="$TEST_DIR/source" bash "$old")
-        check test -z "$value"
+        value=$(GITHUB_TOKEN=STALE_ENV GITHUB_TOKEN_FILE="$TEST_DIR/source" bash "$old" 2> "$TEST_DIR/empty.log")
+        status=$?
+        check test "$status" -ne 0
+        name=empty_source_message
+        check grep -q 'configured token source is empty' "$TEST_DIR/empty.log"
+        name=empty_environment_fails_closed
+        GITHUB_TOKEN= GITHUB_TOKEN_FILE= bash "$old" > /dev/null 2>&1
+        check test "$?" -ne 0
+        name=empty_source_aborts_update
+        before=$(cat "$old")
+        GITHUB_TOKEN_FILE="$TEST_DIR/source" _self_replace "$old" "$content" > /dev/null 2>&1
+        check test "$?" -ne 0
+        name=failed_update_preserves_installed_file
+        check test "$(cat "$old")" = "$before"
         name=release_literal_uses_runtime_source
         content=$(printf '#!/bin/bash\nGITHUB_TOKEN="RELEASE_LITERAL"\nprintf "%%s" "$GITHUB_TOKEN"\n')
         _preserve_sensitive_vars "$old" "$content" > "$TEST_DIR/literal.sh"

@@ -44,12 +44,30 @@ _preserve_sensitive_vars() {
     local literal_assignment='^[[:space:]]*(export[[:space:]]+)?GITHUB_TOKEN=("[^"$`\\]*"|'"'"'[^'"'"']*'"'"'|[a-zA-Z0-9_]*)([[:space:]]*(#.*)?)$'
     while IFS= read -r line || [[ -n "$line" ]]; do
         if [[ "$line" =~ $literal_assignment ]]; then
+            local source_token="${GITHUB_TOKEN:-}"
+            if [[ -n "${GITHUB_TOKEN_FILE:-}" ]]; then
+                source_token=$(cat -- "$GITHUB_TOKEN_FILE") || {
+                    echo "ERROR: GITHUB_TOKEN_FILE cannot be read; update aborted" >&2
+                    return 1
+                }
+            fi
+            if [[ -z "$source_token" ]]; then
+                echo "ERROR: configured token source is empty; update aborted" >&2
+                return 1
+            fi
             cat <<'RUNTIME_TOKEN'
 # Resolve credentials on every execution; never embed the installed token.
 if [[ -n "${GITHUB_TOKEN_FILE:-}" ]]; then
-    GITHUB_TOKEN=$(cat -- "$GITHUB_TOKEN_FILE") || exit 1
+    GITHUB_TOKEN=$(cat -- "$GITHUB_TOKEN_FILE") || {
+        echo "ERROR: GITHUB_TOKEN_FILE cannot be read" >&2
+        exit 1
+    }
 else
     GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+fi
+if [[ -z "$GITHUB_TOKEN" ]]; then
+    echo "ERROR: configured token source is empty" >&2
+    exit 1
 fi
 RUNTIME_TOKEN
             if [[ "$line" =~ ^[[:space:]]*export[[:space:]] ]]; then
@@ -68,7 +86,7 @@ _self_replace() {
     [[ "$UPDATE_DRY_RUN" == "1" ]] && _log INFO "[DRY-RUN] Würde Script aktualisieren: $script_path" && return 0
 
     # NEU: Sensitive Variablen preserven
-    new_content=$(_preserve_sensitive_vars "$script_path" "$new_content")
+    new_content=$(_preserve_sensitive_vars "$script_path" "$new_content") || return 1
 
     local backup_path
     backup_path=$(_backup_script "$script_path")

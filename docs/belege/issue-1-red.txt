@@ -1,0 +1,41 @@
+FAIL lib/auto_update_engine.sh::rotation_A_to_B
+FAIL lib/auto_update_engine.sh::no_embedded_old_token
+FAIL lib/auto_update_engine.sh::rotation_without_another_update
+FAIL lib/auto_update_engine.sh::environment_source
+FAIL lib/auto_update_engine.sh::missing_file_fails_closed
+FAIL lib/auto_update_engine.sh::empty_file_clears_token
+FAIL lib/auto_update_engine.sh::release_literal_uses_runtime_source
+FAIL lib/auto_update_engine.sh::export_single_quote_assignment
+FAIL lib/auto_update_engine.sh::runtime_secret_is_data
+lib/auto_update_engine.sh: passed=1 failed=9
+FAIL lib/auto_update_github_only.sh::rotation_A_to_B
+FAIL lib/auto_update_github_only.sh::no_embedded_old_token
+FAIL lib/auto_update_github_only.sh::rotation_without_another_update
+FAIL lib/auto_update_github_only.sh::environment_source
+FAIL lib/auto_update_github_only.sh::missing_file_fails_closed
+FAIL lib/auto_update_github_only.sh::empty_file_clears_token
+FAIL lib/auto_update_github_only.sh::release_literal_uses_runtime_source
+FAIL lib/auto_update_github_only.sh::export_single_quote_assignment
+FAIL lib/auto_update_github_only.sh::runtime_secret_is_data
+lib/auto_update_github_only.sh: passed=1 failed=9
+FAIL lib/auto_update_direct_only.sh::rotation_A_to_B
+FAIL lib/auto_update_direct_only.sh::no_embedded_old_token
+FAIL lib/auto_update_direct_only.sh::rotation_without_another_update
+FAIL lib/auto_update_direct_only.sh::environment_source
+FAIL lib/auto_update_direct_only.sh::missing_file_fails_closed
+FAIL lib/auto_update_direct_only.sh::empty_file_clears_token
+FAIL lib/auto_update_direct_only.sh::release_literal_uses_runtime_source
+FAIL lib/auto_update_direct_only.sh::export_single_quote_assignment
+FAIL lib/auto_update_direct_only.sh::runtime_secret_is_data
+lib/auto_update_direct_only.sh: passed=1 failed=9
+FAIL standalone/auto_update_standalone.sh::rotation_A_to_B
+FAIL standalone/auto_update_standalone.sh::no_embedded_old_token
+FAIL standalone/auto_update_standalone.sh::rotation_without_another_update
+FAIL standalone/auto_update_standalone.sh::environment_source
+FAIL standalone/auto_update_standalone.sh::missing_file_fails_closed
+FAIL standalone/auto_update_standalone.sh::empty_file_clears_token
+FAIL standalone/auto_update_standalone.sh::release_literal_uses_runtime_source
+FAIL standalone/auto_update_standalone.sh::export_single_quote_assignment
+FAIL standalone/auto_update_standalone.sh::runtime_secret_is_data
+standalone/auto_update_standalone.sh: passed=1 failed=9
+TOTAL: 40, PASSED: 4, FAILED: 36, SKIPPED: 0

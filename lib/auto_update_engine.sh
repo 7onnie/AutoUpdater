@@ -133,33 +133,47 @@ _rollback_script() {
 }
 
 _preserve_sensitive_vars() {
-    local old_script="$1"
+    # Keep the call signature, but never read credentials from the old script.
     local new_content="$2"
-
-    # Extrahiere GITHUB_TOKEN aus altem Script
-    local old_token=""
-    if [[ -f "$old_script" ]]; then
-        old_token=$(grep -E '^GITHUB_TOKEN=' "$old_script" | head -1 | cut -d'"' -f2 2>/dev/null || echo "")
-    fi
-
-    # Extrahiere GITHUB_TOKEN aus der neuen, ausgelieferten Version
-    local new_token=""
-    new_token=$(echo "$new_content" | grep -E '^GITHUB_TOKEN=' | head -1 | cut -d'"' -f2 2>/dev/null || echo "")
-
-    if [[ -n "$new_token" ]]; then
-        # Ein rotierter Token wurde ausgeliefert: er hat Vorrang vor dem alten Token,
-        # sonst wäre Token-Rotation über ein Release nie möglich (Issue #1).
-        _log DEBUG "Neuer GitHub-Token in ausgelieferter Version erkannt, wird übernommen"
-    elif [[ -n "$old_token" ]]; then
-        _log DEBUG "Preserving GitHub token in updated version"
-
-        # Token in new_content ersetzen
-        # Matcht: GITHUB_TOKEN="" oder GITHUB_TOKEN="ghp_xxx"
-        new_content=$(echo "$new_content" | sed "s|^GITHUB_TOKEN=\"[^\"]*\"|GITHUB_TOKEN=\"$old_token\"|g")
-    fi
-
-    # Rückgabe des (ggf. modifizierten) Contents
-    echo "$new_content"
+    local line
+    # Only migrate literal assignments. Existing runtime expressions (e.g.
+    # Keychain or environment lookups) remain owned by the delivered script.
+    local literal_assignment='^[[:space:]]*(export[[:space:]]+)?GITHUB_TOKEN=("[^"$`\\]*"|'"'"'[^'"'"']*'"'"'|[a-zA-Z0-9_]*)([[:space:]]*(#.*)?)$'
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" =~ $literal_assignment ]]; then
+            local source_token="${GITHUB_TOKEN:-}"
+            if [[ -n "${GITHUB_TOKEN_FILE:-}" ]]; then
+                source_token=$(cat -- "$GITHUB_TOKEN_FILE") || {
+                    echo "ERROR: GITHUB_TOKEN_FILE cannot be read; update aborted" >&2
+                    return 1
+                }
+            fi
+            if [[ -z "$source_token" ]]; then
+                echo "ERROR: configured token source is empty; update aborted" >&2
+                return 1
+            fi
+            cat <<'RUNTIME_TOKEN'
+# Resolve credentials on every execution; never embed the installed token.
+if [[ -n "${GITHUB_TOKEN_FILE:-}" ]]; then
+    GITHUB_TOKEN=$(cat -- "$GITHUB_TOKEN_FILE") || {
+        echo "ERROR: GITHUB_TOKEN_FILE cannot be read" >&2
+        exit 1
+    }
+else
+    GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+fi
+if [[ -z "$GITHUB_TOKEN" ]]; then
+    echo "ERROR: configured token source is empty" >&2
+    exit 1
+fi
+RUNTIME_TOKEN
+            if [[ "$line" =~ ^[[:space:]]*export[[:space:]] ]]; then
+                printf '%s\n' 'export GITHUB_TOKEN'
+            fi
+        else
+            printf '%s\n' "$line"
+        fi
+    done <<< "$new_content"
 }
 
 _self_replace() {
@@ -184,7 +198,7 @@ _self_replace() {
     rm -f "$_val_tmp"
 
     # NEU: Sensitive Variablen preserven
-    new_content=$(_preserve_sensitive_vars "$script_path" "$new_content")
+    new_content=$(_preserve_sensitive_vars "$script_path" "$new_content") || return 1
 
     # Backup erstellen
     local backup_path

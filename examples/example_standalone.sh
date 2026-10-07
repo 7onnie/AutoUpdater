@@ -27,7 +27,7 @@ if [[ -f "$(dirname "$0")/../lib/auto_update_engine.sh" ]]; then
     source "$(dirname "$0")/../lib/auto_update_engine.sh"
 
     # Rufe Update-Funktion auf
-    _auto_update_main "$UPDATE_MODE"
+    _auto_update_main "$UPDATE_MODE" "$@"
 else
     echo "ℹ️  Update-Engine nicht gefunden - nutze für echte Standalone-Version:"
     echo "    Copy-Paste aus standalone/auto_update_standalone.sh"

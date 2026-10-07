@@ -29,7 +29,7 @@ if [[ -f "$(dirname "$0")/../lib/auto_update_direct_only.sh" ]]; then
     auto_update_direct
 elif [[ -f "$(dirname "$0")/../lib/auto_update_engine.sh" ]]; then
     source "$(dirname "$0")/../lib/auto_update_engine.sh"
-    _auto_update_main "$UPDATE_MODE"
+    _auto_update_main "$UPDATE_MODE" "$@"
 else
     echo "⚠️  Update-Engine nicht gefunden"
 fi

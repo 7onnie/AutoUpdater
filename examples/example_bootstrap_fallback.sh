@@ -32,11 +32,11 @@ auto_update() {
 
     # Versuche Bootstrap
     if [[ -f "$CACHE_FILE" && -n "$(find "$CACHE_FILE" -mmin -"$CACHE_LIFETIME" 2>/dev/null)" ]]; then
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     fi
 
     if curl -sS --max-time 30 "$ENGINE_URL" -o "$CACHE_FILE" 2>/dev/null; then
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     fi
 
     # Bootstrap fehlgeschlagen - Fallback
@@ -131,7 +131,7 @@ main() {
     echo "=========================================="
     echo ""
 
-    auto_update
+    auto_update "$@"
 
     echo ""
     echo "Script-Logik wird ausgeführt..."

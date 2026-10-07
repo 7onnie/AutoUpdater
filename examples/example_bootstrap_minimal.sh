@@ -37,12 +37,12 @@ auto_update() {
 
     # Cache-Check
     if [[ -f "$CACHE_FILE" && -n "$(find "$CACHE_FILE" -mmin -"$CACHE_LIFETIME" 2>/dev/null)" ]]; then
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     fi
 
     # Neu laden
     if curl -sS --max-time 30 "$ENGINE_URL" -o "$CACHE_FILE" 2>/dev/null; then
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     else
         echo "⚠️  Auto-Update Engine nicht erreichbar. Script läuft ohne Update-Check weiter."
         return 1
@@ -61,7 +61,7 @@ main() {
     echo ""
 
     # Auto-Update durchführen
-    auto_update
+    auto_update "$@"
 
     echo ""
     echo "Script-Logik wird ausgeführt..."

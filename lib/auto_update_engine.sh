@@ -196,7 +196,7 @@ _self_replace() {
         _log SUCCESS "Script erfolgreich aktualisiert"
 
         # Backup aufräumen (nur letztes behalten)
-        find "$(dirname "$script_path")" -name "$(basename "$script_path").backup.*" -type f | sort -r | tail -n +4 | xargs rm -f 2>/dev/null
+        find "$(dirname "$script_path")" -maxdepth 1 -name "$(basename "$script_path").backup.*" -type f | sort -r | tail -n +4 | xargs rm -f 2>/dev/null
 
         return 0
     else
@@ -485,7 +485,7 @@ _update_github_release() {
     _log INFO "Script wird neu gestartet..."
 
     if [[ "$UPDATE_DRY_RUN" != "1" ]]; then
-        exec "$0" "$@"
+        exec "$0" ${_AU_ORIG_ARGS[@]+"${_AU_ORIG_ARGS[@]}"}
     fi
 
     return 0
@@ -563,7 +563,7 @@ _update_git_pull() {
     if git pull origin "$branch" --quiet; then
         _log SUCCESS "Repository erfolgreich aktualisiert"
         _log INFO "Script wird neu gestartet..."
-        exec "$0" "$@"
+        exec "$0" ${_AU_ORIG_ARGS[@]+"${_AU_ORIG_ARGS[@]}"}
     else
         _log ERROR "Git pull fehlgeschlagen"
         return 1
@@ -652,7 +652,7 @@ _update_direct_download() {
     _log INFO "Script wird neu gestartet..."
 
     if [[ "$UPDATE_DRY_RUN" != "1" ]]; then
-        exec "$0" "$@"
+        exec "$0" ${_AU_ORIG_ARGS[@]+"${_AU_ORIG_ARGS[@]}"}
     fi
 
     return 0
@@ -664,6 +664,10 @@ _update_direct_download() {
 
 _auto_update_main() {
     local mode="$1"
+    shift
+    # Original-Argumente des Scripts fuer den Neustart nach dem Update.
+    # Aeltere Bootstraps uebergeben keine — dann Neustart ohne Argumente wie bisher.
+    _AU_ORIG_ARGS=("$@")
 
     _log DEBUG "Auto-Update Engine gestartet (Modus: $mode)"
 

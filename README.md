@@ -55,18 +55,18 @@ auto_update() {
     mkdir -p "$(dirname "$CACHE_FILE")"
 
     if [[ -f "$CACHE_FILE" && -n "$(find "$CACHE_FILE" -mmin -1440 2>/dev/null)" ]]; then
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     fi
 
     if curl -sS --max-time 30 "$ENGINE_URL" -o "$CACHE_FILE" 2>/dev/null; then
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     else
         echo "⚠️  Auto-Update nicht verfügbar"
         return 1
     fi
 }
 
-auto_update
+auto_update "$@"
 
 # Deine Script-Logik
 echo "Script läuft (Version: $SCRIPT_VERSION)"

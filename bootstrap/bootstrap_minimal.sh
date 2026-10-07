@@ -24,13 +24,13 @@ auto_update() {
     # Cache-Check (24h gültig)
     if [[ -f "$CACHE_FILE" && -n "$(find "$CACHE_FILE" -mmin -"$CACHE_LIFETIME" 2>/dev/null)" ]]; then
         # Cache noch gültig - direkt laden und ausführen
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     fi
 
     # Cache abgelaufen oder nicht vorhanden - neu laden
     if curl -sS --max-time 30 "$ENGINE_URL" -o "$CACHE_FILE" 2>/dev/null; then
         # Erfolgreich geladen - ausführen
-        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" && return 0
+        source "$CACHE_FILE" && _auto_update_main "$UPDATE_MODE" "$@" && return 0
     else
         # Download fehlgeschlagen
         echo "⚠️  Auto-Update Engine nicht erreichbar. Script läuft ohne Update-Check weiter."
@@ -59,7 +59,7 @@ auto_update() {
 # # [HIER DEN auto_update CODE EINFÜGEN]
 #
 # # Update durchführen
-# auto_update
+# auto_update "$@"
 #
 # # Deine Script-Logik
 # echo "Script läuft..."

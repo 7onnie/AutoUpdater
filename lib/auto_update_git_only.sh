@@ -21,6 +21,23 @@ _log() {
     esac
 }
 
+# Loest einen (evtl. relativen) Skriptpfad in einen absoluten auf — ohne
+# realpath/readlink -f (unter macOS nicht zuverlaessig). Muss VOR jedem cd laufen.
+_au_abs_path() {
+    local p="$1" dir base
+    case "$p" in
+        */*) dir="${p%/*}"; base="${p##*/}" ;;
+        *)   dir="."; base="$p" ;;
+    esac
+    [[ -z "$dir" ]] && dir="/"
+    dir=$(cd "$dir" 2>/dev/null && pwd -P) || return 1
+    if [[ "$dir" == "/" ]]; then
+        echo "/$base"
+    else
+        echo "$dir/$base"
+    fi
+}
+
 auto_update_git() {
     # Dependencies
     command -v git &> /dev/null || { _log ERROR "git nicht gefunden"; return 1; }
@@ -29,9 +46,13 @@ auto_update_git() {
     local repo_path="${UPDATE_GIT_REPO_PATH:-}"
     local branch="${UPDATE_GIT_BRANCH:-master}"
 
+    # Skriptpfad VOR cd/git absolut aufloesen (Neustart per exec nach dem cd)
+    local script_path
+    script_path=$(_au_abs_path "$0") || { _log ERROR "Skriptpfad nicht aufloesbar: $0 — Update abgebrochen"; return 1; }
+
     # Auto-detect Repository
     if [[ -z "$repo_path" ]]; then
-        repo_path=$(cd "$(dirname "$0")" && git rev-parse --show-toplevel 2>/dev/null)
+        repo_path=$(cd "$(dirname "$script_path")" && git rev-parse --show-toplevel 2>/dev/null)
     fi
 
     [[ -z "$repo_path" || ! -d "$repo_path/.git" ]] && _log ERROR "Kein Git-Repository gefunden" && return 1
@@ -76,7 +97,7 @@ auto_update_git() {
     if git pull origin "$branch" --quiet; then
         _log SUCCESS "Repository erfolgreich aktualisiert"
         _log INFO "Script wird neu gestartet..."
-        exec "$0" "$@"
+        exec "$script_path" "$@"
     else
         _log ERROR "Git pull fehlgeschlagen"
         return 1

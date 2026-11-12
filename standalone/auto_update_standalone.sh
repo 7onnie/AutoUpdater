@@ -172,22 +172,76 @@ _self_replace() {
     fi
 }
 
+_au_split_version() {
+    # Zerlegt "v1.10.0" in _AU_VER_FIELDS=(1 10 0). Rueckgabe 1 bei unlesbarer Version.
+    local v="$1" f
+    _AU_VER_FIELDS=()
+    v="${v#[vV]}"
+    case "$v" in
+        ""|.*|*.|*..*) return 1 ;;
+    esac
+    local IFS='.'
+    read -r -a _AU_VER_FIELDS <<< "$v"
+    [[ ${#_AU_VER_FIELDS[@]} -gt 0 ]] || return 1
+    for f in "${_AU_VER_FIELDS[@]}"; do
+        [[ "$f" =~ ^[0-9]+$ ]] || return 1
+    done
+    return 0
+}
+
+# Rueckgabe: 0 = gleich, 1 = Remote neuer (Update), 2 = lokal neuer,
+#            3 = Version nicht lesbar (KEIN Update, Meldung auf stderr).
+# Feldweise numerisch; fehlende Felder = 0; fuehrendes v/V und Nullen ignoriert.
+# Reines Bash 3.2 (kein sort -V, keine assoziativen Arrays).
 _compare_versions() {
-    local current="$1"
-    local remote="$2"
-
-    current="${current#v}"
-    remote="${remote#v}"
-
-    if [[ "$current" == "$remote" ]]; then
-        return 0
+    local -a cur rem
+    if ! _au_split_version "$1"; then
+        echo "FEHLER: Lokale Version nicht lesbar: '$1' — kein Update" >&2
+        return 3
     fi
-
-    if [[ "$current" < "$remote" ]]; then
-        return 1
+    cur=("${_AU_VER_FIELDS[@]}")
+    if ! _au_split_version "$2"; then
+        echo "FEHLER: Remote-Version nicht lesbar: '$2' — kein Update" >&2
+        return 3
     fi
+    rem=("${_AU_VER_FIELDS[@]}")
 
-    return 2
+    local n=${#cur[@]} i a b
+    [[ ${#rem[@]} -gt $n ]] && n=${#rem[@]}
+    for ((i = 0; i < n; i++)); do
+        a="${cur[i]:-0}"
+        b="${rem[i]:-0}"
+        # fuehrende Nullen entfernen (kein Oktal, kein Ueberlauf)
+        while [[ ${#a} -gt 1 && "${a:0:1}" == "0" ]]; do a="${a:1}"; done
+        while [[ ${#b} -gt 1 && "${b:0:1}" == "0" ]]; do b="${b:1}"; done
+        if [[ ${#a} -lt ${#b} ]]; then
+            return 1
+        elif [[ ${#a} -gt ${#b} ]]; then
+            return 2
+        elif [[ "$a" < "$b" ]]; then
+            return 1
+        elif [[ "$a" > "$b" ]]; then
+            return 2
+        fi
+    done
+    return 0
+}
+
+# Loest einen (evtl. relativen) Skriptpfad in einen absoluten auf — ohne
+# realpath/readlink -f (unter macOS nicht zuverlaessig). Muss VOR jedem cd laufen.
+_au_abs_path() {
+    local p="$1" dir base
+    case "$p" in
+        */*) dir="${p%/*}"; base="${p##*/}" ;;
+        *)   dir="."; base="$p" ;;
+    esac
+    [[ -z "$dir" ]] && dir="/"
+    dir=$(cd "$dir" 2>/dev/null && pwd -P) || return 1
+    if [[ "$dir" == "/" ]]; then
+        echo "/$base"
+    else
+        echo "$dir/$base"
+    fi
 }
 
 # GitHub Release Update Mode
@@ -308,6 +362,9 @@ _update_github_release() {
     elif [[ $version_cmp -eq 2 ]]; then
         _log WARN "Lokale Version ($current_version) ist neuer als Remote ($remote_version)"
         return 0
+    elif [[ $version_cmp -eq 3 ]]; then
+        _log ERROR "Version nicht lesbar (lokal '$current_version', remote '$remote_version') — Update abgebrochen" >&2
+        return 1
     fi
 
     _log INFO "Update verfügbar: $current_version → $remote_version"
@@ -419,8 +476,15 @@ _update_git_pull() {
     local repo_path="${UPDATE_GIT_REPO_PATH:-}"
     local branch="${UPDATE_GIT_BRANCH:-master}"
 
+    # Skriptpfad VOR cd/git absolut aufloesen (Neustart per exec nach dem cd)
+    local script_path
+    if ! script_path=$(_au_abs_path "$0"); then
+        _log ERROR "Skriptpfad nicht aufloesbar: $0 — Update abgebrochen"
+        return 1
+    fi
+
     if [[ -z "$repo_path" ]]; then
-        repo_path=$(cd "$(dirname "$0")" && git rev-parse --show-toplevel 2>/dev/null)
+        repo_path=$(cd "$(dirname "$script_path")" && git rev-parse --show-toplevel 2>/dev/null)
     fi
 
     if [[ -z "$repo_path" || ! -d "$repo_path/.git" ]]; then
@@ -468,7 +532,7 @@ _update_git_pull() {
     if git pull origin "$branch" --quiet; then
         _log SUCCESS "Repository erfolgreich aktualisiert"
         _log INFO "Script wird neu gestartet..."
-        exec "$0" "$@"
+        exec "$script_path" "$@"
     else
         _log ERROR "Git pull fehlgeschlagen"
         return 1
@@ -513,6 +577,9 @@ _update_direct_download() {
             elif [[ $version_cmp -eq 2 ]]; then
                 _log WARN "Lokale Version ($current_version) ist neuer als Remote ($remote_version)"
                 return 0
+            elif [[ $version_cmp -eq 3 ]]; then
+                _log ERROR "Version nicht lesbar (lokal '$current_version', remote '$remote_version') — Update abgebrochen" >&2
+                return 1
             fi
 
             _log INFO "Update verfügbar: $current_version → $remote_version"

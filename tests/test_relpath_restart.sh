@@ -48,15 +48,17 @@ run_case() {
     git -C "$W/other" commit -q -am v2
     git -C "$W/other" push -q origin main
 
-    mkdir -p "$W/elsewhere"
+    # tiefer Fremd-cwd, damit der relative Pfad nach dem cd ins Repo nicht
+    # zufaellig wieder trifft
+    mkdir -p "$W/elsewhere/deep"
     local cwd
     case "$startdir" in
         sub) cwd="$W/repo/sub" ;;
-        *)   cwd="$W/elsewhere" ;;
+        *)   cwd="$W/elsewhere/deep" ;;
     esac
     # aufrufpfad relativ zu cwd
     local p="$callpath"
-    [[ "$callpath" == "REL_FROM_ELSEWHERE" ]] && p="../repo/sub/skript.sh"
+    [[ "$callpath" == "REL_FROM_ELSEWHERE" ]] && p="../../repo/sub/skript.sh"
     (cd "$cwd" && "$p" a1 "b 2" >"$W/out.txt" 2>&1)
     local rc=$?
 
@@ -67,6 +69,7 @@ run_case() {
     [[ $rc -eq 0 ]] || ok=0
     [[ "$starts" == "2" ]] || ok=0
     case "$second" in
+        START:/*/../*|START:/*/./*) ok=0 ;;   # kein ../ oder ./ im Pfad
         START:/*"/skript.sh:a1 b 2") ;;
         *) ok=0 ;;
     esac

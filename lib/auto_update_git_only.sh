@@ -59,21 +59,21 @@ auto_update_git() {
 
     _log DEBUG "Repository: $repo_path"
 
-    # In Repo wechseln
-    cd "$repo_path" || return 1
+    # Kein cd ins Repo (Issue #10): das Arbeitsverzeichnis des Aufrufers bleibt
+    # unveraendert — alle Git-Aufrufe laufen per `git -C`.
 
     # Aktueller Commit
     local current_commit
-    current_commit=$(git rev-parse HEAD)
+    current_commit=$(git -C "$repo_path" rev-parse HEAD)
 
     _log INFO "Prüfe auf Updates..."
 
     # Fetch
-    git fetch origin "$branch" --quiet 2>/dev/null || { _log ERROR "Git fetch fehlgeschlagen"; return 1; }
+    git -C "$repo_path" fetch origin "$branch" --quiet 2>/dev/null || { _log ERROR "Git fetch fehlgeschlagen"; return 1; }
 
     # Remote Commit
     local remote_commit
-    remote_commit=$(git rev-parse "origin/$branch")
+    remote_commit=$(git -C "$repo_path" rev-parse "origin/$branch")
 
     if [[ "$current_commit" == "$remote_commit" ]]; then
         _log SUCCESS "Repository ist bereits aktuell"
@@ -83,7 +83,7 @@ auto_update_git() {
     _log INFO "Update verfügbar: ${current_commit:0:7} → ${remote_commit:0:7}"
 
     # Prüfe lokale Änderungen
-    if ! git diff --quiet || ! git diff --cached --quiet; then
+    if ! git -C "$repo_path" diff --quiet || ! git -C "$repo_path" diff --cached --quiet; then
         _log ERROR "Lokale Änderungen vorhanden - Update abgebrochen"
         _log INFO "Committe oder stashe deine Änderungen zuerst"
         return 1
@@ -94,7 +94,7 @@ auto_update_git() {
     # Pull
     _log INFO "Aktualisiere Repository..."
 
-    if git pull origin "$branch" --quiet; then
+    if git -C "$repo_path" pull origin "$branch" --quiet; then
         _log SUCCESS "Repository erfolgreich aktualisiert"
         _log INFO "Script wird neu gestartet..."
         exec "$script_path" "$@"

@@ -4,7 +4,7 @@
 # Prueft die Engine und alle Kopien. Exit 0 = alles gruen.
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FILES="${VC_FILES:-lib/auto_update_engine.sh standalone/auto_update_standalone.sh lib/auto_update_direct_only.sh lib/auto_update_github_only.sh}"
+FILES="${VC_FILES:-lib/auto_update_engine.sh standalone/auto_update_standalone.sh lib/auto_update_direct_only.sh lib/auto_update_github_only.sh bootstrap/bootstrap_with_fallback.sh}"
 
 FAILS=0
 TOTAL=0

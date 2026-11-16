@@ -33,6 +33,61 @@ auto_update() {
     _fallback_updater
 }
 
+_au_split_version() {
+    # Zerlegt "v1.10.0" in _AU_VER_FIELDS=(1 10 0). Rueckgabe 1 bei unlesbarer Version.
+    local v="$1" f
+    _AU_VER_FIELDS=()
+    v="${v#[vV]}"
+    case "$v" in
+        ""|.*|*.|*..*) return 1 ;;
+    esac
+    local IFS='.'
+    read -r -a _AU_VER_FIELDS <<< "$v"
+    [[ ${#_AU_VER_FIELDS[@]} -gt 0 ]] || return 1
+    for f in "${_AU_VER_FIELDS[@]}"; do
+        [[ "$f" =~ ^[0-9]+$ ]] || return 1
+    done
+    return 0
+}
+
+# Rueckgabe: 0 = gleich, 1 = Remote neuer (Update), 2 = lokal neuer,
+#            3 = Version nicht lesbar (KEIN Update, Meldung auf stderr).
+# Feldweise numerisch; fehlende Felder = 0; fuehrendes v/V und Nullen ignoriert.
+# Reines Bash 3.2 (kein sort -V, keine assoziativen Arrays).
+_compare_versions() {
+    local -a cur rem
+    if ! _au_split_version "$1"; then
+        echo "FEHLER: Lokale Version nicht lesbar: '$1' — kein Update" >&2
+        return 3
+    fi
+    cur=("${_AU_VER_FIELDS[@]}")
+    if ! _au_split_version "$2"; then
+        echo "FEHLER: Remote-Version nicht lesbar: '$2' — kein Update" >&2
+        return 3
+    fi
+    rem=("${_AU_VER_FIELDS[@]}")
+
+    local n=${#cur[@]} i a b
+    [[ ${#rem[@]} -gt $n ]] && n=${#rem[@]}
+    for ((i = 0; i < n; i++)); do
+        a="${cur[i]:-0}"
+        b="${rem[i]:-0}"
+        # fuehrende Nullen entfernen (kein Oktal, kein Ueberlauf)
+        while [[ ${#a} -gt 1 && "${a:0:1}" == "0" ]]; do a="${a:1}"; done
+        while [[ ${#b} -gt 1 && "${b:0:1}" == "0" ]]; do b="${b:1}"; done
+        if [[ ${#a} -lt ${#b} ]]; then
+            return 1
+        elif [[ ${#a} -gt ${#b} ]]; then
+            return 2
+        elif [[ "$a" < "$b" ]]; then
+            return 1
+        elif [[ "$a" > "$b" ]]; then
+            return 2
+        fi
+    done
+    return 0
+}
+
 _fallback_updater() {
     # Minimaler GitHub Release Updater als Fallback
     command -v curl &> /dev/null || { echo "❌ curl nicht gefunden"; return 1; }
@@ -72,15 +127,21 @@ _fallback_updater() {
     [[ -z "$remote_version" ]] && echo "❌ Remote-Version nicht ermittelbar" && return 1
 
     local current_version="${SCRIPT_VERSION:-unknown}"
-    local current_clean="${current_version#v}"
-    local remote_clean="${remote_version#v}"
+    local _VersionCmp
 
-    if [[ "$current_clean" == "$remote_clean" ]]; then
+    # Numerischer Vergleich (#11) statt Textvergleich: 1.9 -> 1.10 ist ein Update
+    _compare_versions "$current_version" "$remote_version"
+    _VersionCmp=$?
+
+    if [[ $_VersionCmp -eq 0 ]]; then
         echo "✅ Script ist aktuell ($current_version)"
         return 0
-    elif [[ "$current_clean" > "$remote_clean" ]]; then
+    elif [[ $_VersionCmp -eq 2 ]]; then
         echo "⚠️  Lokale Version ($current_version) ist neuer als Remote ($remote_version)"
         return 0
+    elif [[ $_VersionCmp -eq 3 ]]; then
+        echo "❌ Version nicht lesbar (lokal '$current_version', remote '$remote_version') — Update abgebrochen"
+        return 1
     fi
 
     echo "ℹ️  Update verfügbar: $current_version → $remote_version"

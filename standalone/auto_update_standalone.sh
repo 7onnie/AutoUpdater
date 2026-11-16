@@ -459,7 +459,7 @@ _update_github_release() {
     _log INFO "Script wird neu gestartet..."
 
     if [[ "$UPDATE_DRY_RUN" != "1" ]]; then
-        exec "$0" "$@"
+        exec "$0" ${_AU_ORIG_ARGS[@]+"${_AU_ORIG_ARGS[@]}"}
     fi
 
     return 0
@@ -533,7 +533,7 @@ _update_git_pull() {
     if git -C "$repo_path" pull origin "$branch" --quiet; then
         _log SUCCESS "Repository erfolgreich aktualisiert"
         _log INFO "Script wird neu gestartet..."
-        exec "$script_path" "$@"
+        exec "$script_path" ${_AU_ORIG_ARGS[@]+"${_AU_ORIG_ARGS[@]}"}
     else
         _log ERROR "Git pull fehlgeschlagen"
         return 1
@@ -614,7 +614,7 @@ _update_direct_download() {
     _log INFO "Script wird neu gestartet..."
 
     if [[ "$UPDATE_DRY_RUN" != "1" ]]; then
-        exec "$0" "$@"
+        exec "$0" ${_AU_ORIG_ARGS[@]+"${_AU_ORIG_ARGS[@]}"}
     fi
 
     return 0
@@ -623,6 +623,10 @@ _update_direct_download() {
 # Main Auto-Update Funktion
 auto_update() {
     local mode="${UPDATE_MODE:-disabled}"
+    # Original-Argumente des Scripts fuer den Neustart nach dem Update (Issue #13).
+    # Die Modus-Funktionen werden ohne Argumente gerufen; ihr `exec` liest deshalb
+    # dieses Array statt "$@". Aufruf wie dokumentiert: `auto_update "$@"`.
+    _AU_ORIG_ARGS=("$@")
 
     _log DEBUG "Auto-Update Engine gestartet (Modus: $mode)"
 

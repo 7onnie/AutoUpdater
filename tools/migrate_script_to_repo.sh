@@ -290,11 +290,11 @@ auto_update() {
     mkdir -p "\$CACHE_DIR" 2>/dev/null
 
     if [[ -f "\$CACHE_FILE" && -n "\$(find "\$CACHE_FILE" -mmin -"\$CACHE_LIFETIME" 2>/dev/null)" ]]; then
-        source "\$CACHE_FILE" && _auto_update_main "\$UPDATE_MODE" && return 0
+        source "\$CACHE_FILE" && _auto_update_main "\$UPDATE_MODE" "\$@" && return 0
     fi
 
     if curl -sS --max-time 30 "\$ENGINE_URL" -o "\$CACHE_FILE" 2>/dev/null; then
-        source "\$CACHE_FILE" && _auto_update_main "\$UPDATE_MODE" && return 0
+        source "\$CACHE_FILE" && _auto_update_main "\$UPDATE_MODE" "\$@" && return 0
     else
         echo "⚠️  Auto-Update Engine nicht erreichbar."
         return 1
@@ -314,7 +314,7 @@ main() {
 }
 
 # START
-auto_update
+auto_update "\$@"
 main "\$@"
 INSTALLER_CONFIG
 
